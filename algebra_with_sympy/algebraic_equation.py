@@ -1,5 +1,5 @@
 """
-This package uses a special version of sympy which defines an equation 
+This package uses a special version of sympy which defines an equation
 with a left-hand-side (lhs) and a right-
 hand-side (rhs) connected by the "=" operator (e.g. `p*V = n*R*T`).
 
@@ -10,8 +10,8 @@ missed details such as a negative sign. This mimics the capabilities available
 in [SageMath](https://www.sagemath.org/) and
 [Maxima](http://maxima.sourceforge.net/).
 
-This package also provides convenient settings for interactive use on the 
-command line, in ipython and Jupyter notebook environments. See the 
+This package also provides convenient settings for interactive use on the
+command line, in ipython and Jupyter notebook environments. See the
 documentation at https://gutow.github.io/Algebra_with_Sympy/.
 
 Explanation
@@ -247,7 +247,7 @@ FiniteSet(Equation(b, (a**2 - c)/a))
 FiniteSet(Equation(c, a**2 - a*b))
 """
 import sys
-
+import param
 import sympy
 from algebra_with_sympy.preparser import integers_as_exact
 from sympy import *
@@ -915,10 +915,53 @@ class Equation(Basic, EvalfMixin):
         tempstr += str(self.lhs) + ' = ' + str(self.rhs)
         return tempstr
 
+    def split(self):
+        if (self.lhs is not S.Zero) and (self.rhs is not S.Zero):
+            return self
+        eqn = self.rewrite(Add)
+        args = eqn.lhs.args
+        if not eqn.lhs.is_Add:
+            return self
+
+        def _sign(t):
+            if not t.is_Mul:
+                return 1
+            return sign(prod([a for a in t.args if a.is_number]))
+
+        if len(args) == 2:
+            a, b = args
+            if b.is_number:
+                # I want the number on the RHS
+                a, b = b, a
+            if _sign(b) <= 0:
+                # if possible, keep the LHS without negative sign
+                a, b = -a, -b
+            return self.func(b, -a)
+
+        pos = [a for a in args if _sign(a) > 0]
+        neg = [a for a in args if _sign(a) <= 0]
+        return self.func(Add(*pos), -Add(*neg))
+
+    def cm(self):
+        """Cross-multiply the members of the equation. For example:
+
+        n1   n2
+        -- = --
+        d1   d2
+
+        gives:
+
+        n1 * d2 = n2 * d1
+
+        """
+        n1, d1 = fraction(self.lhs)
+        n2, d2 = fraction(self.rhs)
+        return self.func(n1 * d2, n2 * d1)
+
 
 Eqn = Equation
 
-class algwsym_config():
+class _algwsym_config():
 
     def __init__(self):
         """
@@ -944,7 +987,7 @@ class algwsym_config():
         You can adjust this behavior using some flags that impact output:
         * `algwsym_config.output.show_code` default is `False`.
         * `algwsym_config.output.human_text` default is `True`.
-        * `algwsym_config.output.label` default is `True`.
+        * `algwsym_config.output.show_label` default is `True`.
         * `algwsym_config.output.latex_as_equations` default is `False`
 
         In interactive environments you can get both types of output by setting
@@ -965,7 +1008,7 @@ class algwsym_config():
         environment will show both the code version and the human readable text.
         These flags impact the behavior of the `print(Eqn)` statement.
 
-        The third flag `algwsym_config.output.label` has a default value of
+        The third flag `algwsym_config.output.show_label` has a default value of
         `True`. Setting this to `False` suppresses the labeling of an equation
         with its python name off to the right of the equation.
 
@@ -974,85 +1017,70 @@ class algwsym_config():
         output as LaTex equations wrapping them in `\\begin{equation}...\\end{
         equation}`.
         """
-        pass
+        self.output = _output_settings()
+        self.numerics = _numerics_settings()
 
-    class output():
+class _output_settings(param.Parameterized):
 
-        def __init__(self):
-            """This holds settings that impact output.
-            """
-            pass
+    show_code = param.Boolean(False, doc="""
+        If `True` code versions of the equation expression will be
+        output in interactive environments. Default = `False`.""")
 
-        @property
-        def show_code(self):
-            """
-            If `True` code versions of the equation expression will be
-            output in interactive environments. Default = `False`.
-            """
-            return self.show_code
+    show_label = param.Boolean(False, doc="""
+        If `True` a label with the name of the equation in the python
+        environment will be shown on the screen.
+        Default = `False`.""")
 
-        @property
-        def human_text(self):
-            """
-            If `True` the human readable equation expression will be
-            output in text interactive environments. Default = `False`.
-            """
-            return self.human_text
+    human_text = param.Boolean(False, doc="""
+        If `True` the human readable equation expression will be
+        output in text interactive environments. Default = `False`.""")
 
-        @property
-        def solve_to_list(self):
-            """
-            If `True` the results of a call to `solve(...)` will return a
-            Python `list` rather than a Sympy `FiniteSet`. This recovers
-            behavior for versions before 0.11.0.
+    solve_to_list = param.Boolean(False, doc="""
+        If `True` the results of a call to `solve(...)` will return a
+        Python `list` rather than a Sympy `FiniteSet`. This recovers
+        behavior for versions before 0.11.0.
 
-            Note: setting this `True` means that expressions within the
-            returned solutions will not be pretty-printed in Jupyter and
-            IPython.
-            """
-            return self.solve_to_list
+        Note: setting this `True` means that expressions within the
+        returned solutions will not be pretty-printed in Jupyter and
+        IPython.""")
 
-        @property
-        def latex_as_equations(self):
-            """
-            If `True` any output that is returned as LaTex for
-            pretty-printing will be wrapped in the formal Latex for an
-            equation. For example rather than
-            ```
-            $\\frac{a}{b}=c$
-            ```
-            the output will be
-            ```
-            \\begin{equation}\\frac{a}{b}=c\\end{equation}
-            ```
-            """
-            return self.latex_as_equation
+    latex_as_equations = param.Boolean(False, doc="""
+        If `True` any output that is returned as LaTex for
+        pretty-printing will be wrapped in the formal Latex for an
+        equation. For example rather than
+        ```
+        $\\frac{a}{b}=c$
+        ```
+        the output will be
+        ```
+        \\begin{equation}\\frac{a}{b}=c\\end{equation}
+        ```""")
 
-    class numerics():
+    latex_printer = param.Callable(latex, doc="""
+        The latex printer function which will be used to create
+        the latex output to be shown on the screen.""")
 
-        def __init__(self):
-            """This class holds settings for how numerical computation and
-            inputs are handled.
-            """
-            pass
+class _numerics_settings(param.Parameterized):
 
-        def integers_as_exact(self):
-            """**This is a flag for informational purposes and interface
-            consistency. Changing the value will not change the behavior.**
+    integers_as_exact = param.Boolean(True, doc="""
+        *This is a flag for informational purposes and interface
+        consistency. Changing the value will not change the behavior.**
 
-            To change the behavior call:
-            * `unset_integers_as_exact()` to turn this feature off.
-            * `set_integers_as_exact()` to turn this feature on (on by
-            default).
+        To change the behavior call:
+        * `unset_integers_as_exact()` to turn this feature off.
+        * `set_integers_as_exact()` to turn this feature on (on by
+        default).
 
-            If set to `True` (the default) and if running in an
-            IPython/Jupyter environment any number input without a decimal
-            will be interpreted as a sympy integer. Thus, fractions and
-            related expressions will not evalute to floating point numbers,
-            but be maintained as exact expressions (e.g. 2/3 -> 2/3 not the
-            float 0.6666...).
-            """
-            return self.integers_as_exact
+        If set to `True` (the default) and if running in an
+        IPython/Jupyter environment any number input without a decimal
+        will be interpreted as a sympy integer. Thus, fractions and
+        related expressions will not evalute to floating point numbers,
+        but be maintained as exact expressions (e.g. 2/3 -> 2/3 not the
+        float 0.6666...).""")
+
+
+algwsym_config = _algwsym_config()
+
 
 def __latex_override__(expr, *arg):
     algwsym_config = False
@@ -1070,25 +1098,30 @@ def __latex_override__(expr, *arg):
     except ModuleNotFoundError:
         pass
     show_code = False
+    show_label = False
     latex_as_equations = False
+    latex_printer = latex
     if ip:
         algwsym_config = get_ipython().user_ns.get("algwsym_config", False)
     else:
         algwsym_config = globals()['algwsym_config']
     if algwsym_config:
         show_code = algwsym_config.output.show_code
+        show_label = algwsym_config.output.show_label
         latex_as_equations = algwsym_config.output.latex_as_equations
+        latex_printer = algwsym_config.output.latex_printer
     if show_code:
         print("Code version: " + repr(expr))
     if latex_as_equations:
-        return r'\begin{equation}'+latex(expr)+'\end{equation}'
+        return r'\begin{equation}'+latex_printer(expr)+'\end{equation}'
     else:
         tempstr = ''
         namestr = ''
         if isinstance(expr, Equation):
             namestr = expr._get_eqn_name()
-        if namestr != '' and algwsym_config and algwsym_config.output.label:
-            tempstr += r'$'+latex(expr)
+
+        if namestr != '' and algwsym_config and show_label:
+            tempstr += r'$'+latex_printer(expr)
             # work around for colab's inconsistent handling of mixed latex and
             # plain strings.
             if colab:
@@ -1098,7 +1131,7 @@ def __latex_override__(expr, *arg):
                 tempstr += r'\,\,\,\,\,\,\,\,\,\,$(' + namestr + ')'
             return tempstr
         else:
-            return '$'+latex(expr) + '$'
+            return '$'+latex_printer(expr) + '$'
 
 def __command_line_printing__(expr, *arg):
     # print('Entering __command_line_printing__')
@@ -1117,7 +1150,7 @@ def __command_line_printing__(expr, *arg):
         namestr = ''
         if isinstance(expr, Equation):
             namestr = expr._get_eqn_name()
-        if namestr != '' and algwsym_config.output.label:
+        if namestr != '' and algwsym_config.output.show_label:
             labelstr += '          (' + namestr + ')'
         return print(tempstr + str(expr) + labelstr)
 
