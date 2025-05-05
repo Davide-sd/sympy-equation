@@ -414,3 +414,11 @@ def test_split(eqn, expected):
 ])
 def test_cross_multiply(eqn, expected):
     assert eqn.cm() == expected
+
+
+@pytest.mark.parametrize("eqn, expr", [
+    (Eqn(a, b), a - b),
+    (Eqn(a / b, c / d), a / b - c / d),
+])
+def test_as_expr(eqn, expr):
+    assert eqn.as_expr() == expr

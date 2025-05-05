@@ -958,6 +958,13 @@ class Equation(Basic, EvalfMixin):
         n2, d2 = fraction(self.rhs)
         return self.func(n1 * d2, n2 * d1)
 
+    def as_expr(self):
+        "Return an expression of the form: LHS - RHS."
+        return self.lhs - self.rhs
+
+    def to_expr(self):
+        return self.as_expr()
+
 
 Eqn = Equation
 
