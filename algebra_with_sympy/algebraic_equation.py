@@ -992,17 +992,9 @@ class _algwsym_config():
         compatible version of the equation.
 
         You can adjust this behavior using some flags that impact output:
-        * `algwsym_config.output.show_code` default is `False`.
         * `algwsym_config.output.human_text` default is `True`.
         * `algwsym_config.output.show_label` default is `True`.
         * `algwsym_config.output.latex_as_equations` default is `False`
-
-        In interactive environments you can get both types of output by setting
-        the `algwsym_config.output.show_code` flag. If this flag is true
-        calls to `latex` and `str` will also print an additional line "code
-        version: `repr(Eqn)`". Thus in Jupyter you will get a line of typeset
-        mathematics output preceded by the code version that can be copy-pasted.
-        Default is `False`.
 
         A second flag `algwsym_config.output.human_text` is useful in
         text-based interactive environments such as command line python or
@@ -1028,10 +1020,6 @@ class _algwsym_config():
         self.numerics = _numerics_settings()
 
 class _output_settings(param.Parameterized):
-
-    show_code = param.Boolean(False, doc="""
-        If `True` code versions of the equation expression will be
-        output in interactive environments. Default = `False`.""")
 
     show_label = param.Boolean(False, doc="""
         If `True` a label with the name of the equation in the python
@@ -1069,7 +1057,7 @@ class _output_settings(param.Parameterized):
 
 class _numerics_settings(param.Parameterized):
 
-    integers_as_exact = param.Boolean(True, doc="""
+    integers_as_exact = param.Boolean(False, doc="""
         *This is a flag for informational purposes and interface
         consistency. Changing the value will not change the behavior.**
 
@@ -1084,6 +1072,13 @@ class _numerics_settings(param.Parameterized):
         related expressions will not evalute to floating point numbers,
         but be maintained as exact expressions (e.g. 2/3 -> 2/3 not the
         float 0.6666...).""")
+
+    @param.depends("integers_as_exact", watch=True)
+    def _update_integers_as_exact(self):
+        if self.integers_as_exact:
+            set_integers_as_exact()
+        else:
+            unset_integers_as_exact()
 
 
 algwsym_config = _algwsym_config()
@@ -1104,7 +1099,6 @@ def __latex_override__(expr, *arg):
         colab = True
     except ModuleNotFoundError:
         pass
-    show_code = False
     show_label = False
     latex_as_equations = False
     latex_printer = latex
@@ -1113,14 +1107,11 @@ def __latex_override__(expr, *arg):
     else:
         algwsym_config = globals()['algwsym_config']
     if algwsym_config:
-        show_code = algwsym_config.output.show_code
         show_label = algwsym_config.output.show_label
         latex_as_equations = algwsym_config.output.latex_as_equations
         latex_printer = algwsym_config.output.latex_printer
-    if show_code:
-        print("Code version: " + repr(expr))
     if latex_as_equations:
-        return r'\begin{equation}'+latex_printer(expr)+'\end{equation}'
+        return r'\begin{equation}'+latex_printer(expr)+r'\end{equation}'
     else:
         tempstr = ''
         namestr = ''
@@ -1132,7 +1123,7 @@ def __latex_override__(expr, *arg):
             # work around for colab's inconsistent handling of mixed latex and
             # plain strings.
             if colab:
-                colabname = namestr.replace('_', '\_')
+                colabname = namestr.replace('_', r'\_')
                 tempstr += r'\,\,\,\,\,\,\,\,\,\,(' + colabname + ')$'
             else:
                 tempstr += r'\,\,\,\,\,\,\,\,\,\,$(' + namestr + ')'
@@ -1143,13 +1134,9 @@ def __latex_override__(expr, *arg):
 def __command_line_printing__(expr, *arg):
     # print('Entering __command_line_printing__')
     human_text = True
-    show_code = False
     if algwsym_config:
         human_text = algwsym_config.output.human_text
-        show_code = algwsym_config.output.show_code
     tempstr = ''
-    if show_code:
-        tempstr += "Code version: " + repr(expr) + '\n'
     if not human_text:
         return print(tempstr + repr(expr))
     else:
@@ -1340,16 +1327,6 @@ def solve(f, *symbols, **flags):
     [[Equation(x, -3), Equation(y, 3)], [Equation(x, -1), Equation(y, -1)], [Equation(x, 1), Equation(y, 1)], [Equation(x, 3), Equation(y, -3)]]
     >>> algwsym_config.output.solve_to_list = False # reset to default
 
-    `algwsym_config.output.human_text = True` with
-    `algwsym_config.output.how_code=True` shows both.
-    In Jupyter-like environments `show_code=True` yields the Raw output and
-    a typeset version. If `show_code=False` (the default) only the
-    typeset version is shown in Jupyter.
-    >>> algwsym_config.output.show_code=True
-    >>> algwsym_config.output.human_text=True
-    >>> B
-    Code version: FiniteSet(FiniteSet(Equation(x, -3), Equation(y, 3)), FiniteSet(Equation(x, -1), Equation(y, -1)), FiniteSet(Equation(x, 1), Equation(y, 1)), FiniteSet(Equation(x, 3), Equation(y, -3)))
-    {{x = -3, y = 3}, {x = -1, y = -1}, {x = 1, y = 1}, {x = 3, y = -3}}
     """
     from sympy.solvers.solvers import solve
     from sympy.sets.sets import FiniteSet

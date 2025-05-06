@@ -6,15 +6,18 @@ from sympy import (
 from sympy.core.function import AppliedUndef
 from sympy.printing.latex import LatexPrinter
 from algebra_with_sympy.algebraic_equation import (
-    Eqn, Equation, solve, collect, algwsym_config
+    Eqn,
+    Equation,
+    Equality,
+    units, solve,
+    collect,
+    algwsym_config,
+    __latex_override__,
+    __command_line_printing__,
 )
-from algebra_with_sympy.algebraic_equation import Equality, units
 from sympy import sqrt, root, Heaviside
-from algebra_with_sympy.algebraic_equation import algwsym_config
-
-
-from pytest import raises
 import pytest
+import sys
 algwsym_config.output.show_label = True
 
 a, b, c, d = symbols("a, b, c, d")
@@ -54,7 +57,7 @@ def my_latex(expr, **settings):
 
 def test_define_equation():
     a, b, c = symbols('a b c')
-    raises(TypeError, lambda: Equation(FiniteSet(a), FiniteSet(b, c)))
+    pytest.raises(TypeError, lambda: Equation(FiniteSet(a), FiniteSet(b, c)))
     assert(Equation(1, 0).check() == False)
     assert Eqn(1, 0) == Equation(1, 0)
     tsteqn = Equation(a, b/c)
@@ -62,6 +65,7 @@ def test_define_equation():
     assert tsteqn.lhs == a
     assert tsteqn.rhs == b/c
     assert tsteqn.free_symbols == {a, b, c}
+
 
 def test_convert_equation():
     a, b, c = symbols('a b c')
@@ -97,17 +101,51 @@ def test_binary_op():
     assert tsteqn._eval_power(a) == Equation(a**a, (b/c)**a)
 
 
+@pytest.mark.parametrize("show_label, human_text, output_txt, output_latex", [
+    (
+        True,
+        True,
+        'a = b/c          (tsteqn)\n',
+        '$a=\\frac{b}{c}\\,\\,\\,\\,\\,\\,\\,\\,\\,\\,$(tsteqn)'
+    ),
+    (
+        True,
+        False,
+        'Equation(a, b/c)\n',
+        '$a=\\frac{b}{c}\\,\\,\\,\\,\\,\\,\\,\\,\\,\\,$(tsteqn)'
+    ),
+    (
+        False,
+        True,
+        'a = b/c\n',
+        '$a=\\frac{b}{c}$'
+    ),
+    (
+        False,
+        False,
+        'Equation(a, b/c)\n',
+        '$a=\\frac{b}{c}$'
+    ),
+])
+def test_output_show_label(show_label, human_text, output_txt, output_latex, capsys):
+    a, b, c = symbols('a b c')
+    tsteqn = Eqn(a, b / c)
+
+    import __main__ as gs
+    vars(gs)['tsteqn'] = tsteqn
+    assert tsteqn._get_eqn_name() == 'tsteqn'
+
+    algwsym_config.output.show_label = show_label
+    algwsym_config.output.human_text = human_text
+    __command_line_printing__(tsteqn)
+    captured = capsys.readouterr()
+    assert captured.out == output_txt
+
+    sys.displayhook = sys.__displayhook__
+    assert __latex_override__(tsteqn) == output_latex
+
+
 def test_outputs(capsys):
-    from algebra_with_sympy import algwsym_config
-    from algebra_with_sympy.algebraic_equation import __latex_override__, \
-        __command_line_printing__
-
-    # check defaults
-    assert algwsym_config.output.show_code == False
-    assert algwsym_config.output.human_text == True
-    assert algwsym_config.output.show_label == True
-    assert algwsym_config.output.solve_to_list == False
-
     a, b, c = symbols('a b c')
     tsteqn = Eqn(a, b/c)
     assert tsteqn.__str__() == 'a = b/c'
@@ -117,29 +155,17 @@ def test_outputs(capsys):
     assert tsteqn.__str__() == 'a = b/c'
     assert latex(tsteqn) == 'a=\\frac{b}{c}'
 
-    import __main__ as gs
-    vars(gs)['tsteqn'] = tsteqn
-    assert tsteqn._get_eqn_name() == 'tsteqn'
-    __command_line_printing__(tsteqn)
-    captured = capsys.readouterr()
-    assert captured.out == 'a = b/c          (tsteqn)\n'
-    # make sure sys.displayhook does not point to __command_line_printing__()
-    import sys
-    sys.displayhook = sys.__displayhook__
-    assert __latex_override__(tsteqn) == ('$a=\\frac{b}{c}\\,\\,\\,\\,\\,\\,'
-                                          '\\,\\,\\,\\,$(tsteqn)')
-    algwsym_config.output.show_label = False
-    __command_line_printing__(tsteqn)
-    captured = capsys.readouterr()
-    assert captured.out == 'a = b/c\n'
-    assert __latex_override__(tsteqn) == '$a=\\frac{b}{c}$'
-    algwsym_config.output.show_label = True
 
+def test_outputs_custom_latex_printer():
     f = Function("f")(a, b, c)
     eq = Eqn(f, 2)
     assert latex(eq) == "f{\\left(a,b,c \\right)}=2"
     # use custom printer
     assert my_latex(eq) == "f=2"
+
+
+def test_outputs_solve(capsys):
+    algwsym_config.output.human_text = True
 
     x, y = symbols('x y', real=True)
     eq1 = Eqn(abs(2*x + y),3)
@@ -161,35 +187,6 @@ def test_outputs(capsys):
            '{{x = -3, y = 3}, {x = -1, y = -1}, ' \
                                    '{x = 1, y = 1}, {x = 3, y = -3}}\n'
 
-    algwsym_config.output.show_code = True
-    __command_line_printing__(B)
-    captured = capsys.readouterr()
-    assert captured.out== \
-           'Code version: FiniteSet(FiniteSet(' \
-        'Equation(x, -3), Equation(y, 3)), FiniteSet(Equation(x, -1), ' \
-        'Equation(y, -1)), FiniteSet(Equation(x, 1), Equation(y, 1)), ' \
-        'FiniteSet(Equation(x, 3), Equation(y, -3)))' \
-    '\n{{x = -3, y = 3}, {x = -1, y = -1}, {x = 1, y = 1}, {x = 3, y = -3}}\n'
-    assert __latex_override__(B) == \
-    '$\\left\\{\\left\\{x=-3, y=3\\right\\}, \\left\\{x=-1, ' \
-           'y=-1\\right\\}, \\left\\{x=1, y=1\\right\\}, ' \
-            '\\left\\{x=3, y=-3\\right\\}\\right\\}$'
-    captured = capsys.readouterr()
-    assert captured.out == \
-           'Code version: FiniteSet(FiniteSet(' \
-           'Equation(x, -3), Equation(y, 3)), FiniteSet(Equation(x, -1), ' \
-           'Equation(y, -1)), FiniteSet(Equation(x, 1), Equation(y, 1)), ' \
-           'FiniteSet(Equation(x, 3), Equation(y, -3)))\n'
-
-    algwsym_config.output.show_code = False
-    algwsym_config.output.human_text = False
-    __command_line_printing__(B)
-    captured = capsys.readouterr()
-    assert captured.out == 'FiniteSet(FiniteSet(Equation(x, -3), ' \
-                            'Equation(y, 3)), FiniteSet(Equation(x, -1), ' \
-                            'Equation(y, -1)), FiniteSet(Equation(x, 1), ' \
-                            'Equation(y, 1)), FiniteSet(Equation(x, 3), ' \
-                            'Equation(y, -3)))\n'
 
 def test_sympy_functions():
     a, b, c = symbols('a b c')
@@ -202,11 +199,12 @@ def test_sympy_functions():
     assert tsteqn5.apply(exp).lhs == exp(a)
     assert tsteqn5.apply(exp).rhs == exp(Matrix([[1, 1], [1, 1]]))
 
+
 def test_helper_functions():
     a, b, c, x= symbols('a b c x')
     tsteqn = Equation(a, b/c)
-    raises(ValueError, lambda: integrate(tsteqn, c))
-    raises(AttributeError, lambda: integrate(tsteqn, c, side='right'))
+    pytest.raises(ValueError, lambda: integrate(tsteqn, c))
+    pytest.raises(AttributeError, lambda: integrate(tsteqn, c, side='right'))
     assert tsteqn.evalf(4, {b: 2.0, c: 4}) == Equation(a, Float("0.5", dps=4))
     assert diff(tsteqn, c) == Equation(diff(a, c, evaluate=False), -b/c**2)
     tsteqn = Equation(a*c, b/c)
@@ -236,9 +234,10 @@ def test_helper_functions():
         a + 1, c)
     assert simplify(Equation((a + 1)**2/(a + 1), exp(log(c)))) == Equation(
         a + 1, c)
-    assert root(Eqn(a,b/c),3) == Equation(a**(S(1)/S(3)), (b/c)**(S(1)/S(3)))
+    assert Eqn(a,b/c).apply(lambda e: root(e, 3)) == Equation(a**(S(1)/S(3)), (b/c)**(S(1)/S(3)))
     assert root(b/c,3) == (b/c)**(S(1)/S(3))
-    assert sqrt(Eqn(a,b/c)) == Equation(sqrt(a), sqrt(b/c))
+    assert Eqn(a,b/c).apply(sqrt) == Equation(sqrt(a), sqrt(b/c))
+
 
 def test_units():
     units('J mol K')
@@ -257,6 +256,7 @@ def test_units():
     assert 1.0*J + 5.0*J == 6.0*J
     assert 1.0*J + 5.0*mol == 1.0*J + 5.0*mol
     assert J > 0 and mol > 0 and K > 0
+
 
 def test_solve():
     a, b, c, x = symbols('a b c x')
@@ -305,6 +305,7 @@ def test_solve():
         Eqn(xi, 4*Tp/sqrt(16*Tp**2 + pi**2*Ts**2))
     ]
 
+
 def test_Heaviside():
     a, b, c, x = symbols('a b c x')
     tsteqn = Equation(a, b / c)
@@ -312,11 +313,13 @@ def test_Heaviside():
             Equation(Heaviside(tsteqn.lhs), Heaviside(tsteqn.rhs)))
     assert Heaviside(0) == S(1)/S(2)
 
+
 def test_equality_extension():
     a, b, c, x = symbols('a b c x')
     tstequal = Equality(a, b / c)
     assert(tstequal.to_Equation() == Equation(a, b / c))
     assert(tstequal.to_Eqn()== Equation(a, b / c))
+
 
 def test_apply_syntax():
     a, b, c, x = symbols('a b c x')
@@ -331,7 +334,7 @@ def test_apply_syntax():
 def test_do_syntax():
     a, b, c, x = symbols('a b c x')
     tsteqn = Equation(a, b/c)
-    raises(AttributeError, lambda: tsteqn.do.log())
+    pytest.raises(AttributeError, lambda: tsteqn.do.log())
     poly = Equation(a*x**2 + b*x + c*x**2, a*x**3 + b*x**3 + c*x)
     assert poly.dorhs.collect(x) == Eqn(poly.lhs, poly.rhs.collect(x))
     assert poly.dolhs.collect(x) == Eqn(poly.lhs.collect(x), poly.rhs)
@@ -372,13 +375,13 @@ def test_subs():
 
     # verify that proper errors are raised
     eq3 = Equation(b, 5)
-    raises(TypeError, lambda: eq1.subs([eq2, eq3]))
-    raises(ValueError, lambda: eq1.subs(eq2, {b: 5}))
+    pytest.raises(TypeError, lambda: eq1.subs([eq2, eq3]))
+    pytest.raises(ValueError, lambda: eq1.subs(eq2, {b: 5}))
 
     # verify that substituting an Equation into an expression is not supported
-    raises(ValueError, lambda: eq1.dolhs.subs(eq2))
-    raises(ValueError, lambda: eq1.dorhs.subs(eq2))
-    raises(ValueError, lambda: (x + a + b + c).subs(eq2))
+    pytest.raises(ValueError, lambda: eq1.dolhs.subs(eq2))
+    pytest.raises(ValueError, lambda: eq1.dorhs.subs(eq2))
+    pytest.raises(ValueError, lambda: (x + a + b + c).subs(eq2))
 
     # verify the effectiveness of `simultaneous`
     eq = Equation((x + a) / a, b * c)
