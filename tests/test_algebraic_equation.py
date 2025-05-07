@@ -1,7 +1,8 @@
 from sympy import (
     symbols, integrate, simplify, expand, factor, Integral, Add,
     diff, FiniteSet, Function, Matrix, S, Eq,
-    sin, cos, log, exp, latex, Symbol, I, pi, Float
+    sin, cos, log, exp, latex, Symbol, I, pi, Float, Derivative, Rational,
+    oo, Piecewise, gamma, sign, re,
 )
 from sympy.core.function import AppliedUndef
 from sympy.printing.latex import LatexPrinter
@@ -200,17 +201,45 @@ def test_sympy_functions():
     assert tsteqn5.apply(exp).rhs == exp(Matrix([[1, 1], [1, 1]]))
 
 
+@pytest.mark.parametrize("eqn, args, kwargs, res", [
+    (Equation(a, a**2*b/c), (a, ), {}, Equation(1, 2*a*b/c)),
+    (Equation(a, a**2*b/c), (a, ), {"evaluate": True}, Equation(1, 2*a*b/c)),
+    (Equation(a, a**2*b/c), (a, ), {"evaluate": False}, Equation(Derivative(a, a), Derivative(a**2*b/c, a))),
+    (Equation(a, a**2*b/c), (a, 2), {}, Equation(0, 2*b/c)),
+])
+def test_diff(eqn, args, kwargs, res):
+    assert diff(eqn, *args, **kwargs) == res
+    assert eqn.diff(*args, **kwargs) == res
+
+
+@pytest.mark.xfail
+def test_derivative():
+    e = Equation(a, a**2*b/c)
+    assert Derivative(e, a).doit() == Equation(1, 2*a*b/c)
+
+
+@pytest.mark.parametrize("eqn, args, kwargs, res", [
+    (Equation(a, a**2*b/c), (a, ), {}, Equation(a**2/2, a**3*b/(3*c))),
+    (Equation(a, a**2*b/c), ((a, 1, 2), ), {}, Equation(Rational(3, 2), 7*b/(3*c))),
+    (Equation(a, b**a*exp(-b)), ((b, 0, oo), ), {}, Equation(oo*sign(a), Piecewise((gamma(a + 1), re(a) > -1), (Integral(b**a*exp(-b), (b, 0, oo)), True)))),
+    (Equation(a, b**a*exp(-b)), ((b, 0, oo), ), {"conds": "none"}, Equation(oo*sign(a), gamma(a + 1))),
+])
+def test_integrate(eqn, args, kwargs, res):
+    assert integrate(eqn, *args, **kwargs) == res
+    assert eqn.integrate(*args, **kwargs) == res
+
+
 def test_helper_functions():
     a, b, c, x= symbols('a b c x')
     tsteqn = Equation(a, b/c)
-    pytest.raises(ValueError, lambda: integrate(tsteqn, c))
-    pytest.raises(AttributeError, lambda: integrate(tsteqn, c, side='right'))
+    assert integrate(tsteqn, c) == Equation(a*c, b*log(c))
+    assert tsteqn.integrate(c) == Equation(a*c, b*log(c))
     assert tsteqn.evalf(4, {b: 2.0, c: 4}) == Equation(a, Float("0.5", dps=4))
-    assert diff(tsteqn, c) == Equation(diff(a, c, evaluate=False), -b/c**2)
+    assert diff(tsteqn, c) == Equation(0, -b/c**2)
+    assert tsteqn.diff(c) == Equation(0, -b/c**2)
     tsteqn = Equation(a*c, b/c)
     assert diff(tsteqn, c) == Equation(a, -b/c**2)
-    assert integrate(tsteqn, c, side='rhs') == integrate(tsteqn.rhs, c)
-    assert integrate(tsteqn, c, side='lhs') == integrate(tsteqn.lhs, c)
+    assert tsteqn.diff(c) == Equation(a, -b/c**2)
 
     def adsq(eqn):
         # Arbitrary python function

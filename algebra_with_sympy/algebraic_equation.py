@@ -193,8 +193,7 @@ True
 False
 
 Differentiation
-Differentiation is applied to both sides if the wrt variable appears on
-both sides.
+Differentiation is applied to both sides:
 >>> q=Eqn(a*c, b/c**2)
 >>> q
 Equation(a*c, b/c**2)
@@ -207,34 +206,10 @@ Equation(Derivative(log(a*c), b), 1/b)
 >>> diff(q,c,2)
 Equation(Derivative(a, c), 6*b/c**4)
 
-If you specify multiple differentiation all at once the assumption
-is order of differentiation matters and the lhs will not be
-evaluated.
->>> diff(q,c,b)
-Equation(Derivative(a*c, b, c), -2/c**3)
-
-To overcome this specify the order of operations.
->>> diff(diff(q,c),b)
-Equation(Derivative(a, b), -2/c**3)
-
-But the reverse order returns an unevaulated lhs (a may depend on b).
->>> diff(diff(q,b),c)
-Equation(Derivative(a*c, b, c), -2/c**3)
-
-Integration can only be performed on one side at a time.
+Similarly, integration is applied to both sides:
 >>> q=Eqn(a*c,b/c)
->>> integrate(q,b,side='rhs')
-b**2/(2*c)
->>> integrate(q,b,side='lhs')
-a*b*c
-
-Make a pretty statement of integration from an equation
->>> Eqn(Integral(q.lhs,b),integrate(q,b,side='rhs'))
-Equation(Integral(a*c, b), b**2/(2*c))
-
-Integration of each side with respect to different variables
->>> q.dorhs.integrate(b).dolhs.integrate(a)
-Equation(a**2*c/2, b**2/(2*c))
+>>> integrate(q,b)
+Equation(a*c**2/2, b*log(c))
 
 Automatic solutions using sympy solvers. THIS IS EXPERIMENTAL. Please
 report issues at https://github.com/gutow/Algebra_with_Sympy/issues.
@@ -547,12 +522,7 @@ class Equation(Basic, EvalfMixin):
         """
         return Equation(self.rhs, self.lhs)
 
-    @property
-    def swap(self):
-        """
-        Synonym for `.reversed`
-        """
-        return self.reversed
+    swap = reversed
 
     def _applytoexpr(self, expr, func, *args, **kwargs):
         # Applies a function to an expression checking whether there
@@ -869,31 +839,19 @@ class Equation(Basic, EvalfMixin):
     n = evalf
 
     def _eval_derivative(self, *args, **kwargs):
-        # TODO Find why diff and Derivative do not appear to pass through
-        #  kwargs to this. Since we cannot set evaluation of lhs manually
-        #  try to be intelligent about when to do it.
-        from sympy.core.function import Derivative
-        from sympy.core.sympify import _sympify
-        eval_lhs = False
-        if not (isinstance(self.lhs, Derivative)):
-            for sym in args:
-                if sym in self.lhs.free_symbols and not (
-                    _sympify(sym).is_number):
-                    eval_lhs = True
-        return Equation(self.lhs.diff(*args, **kwargs, evaluate=eval_lhs),
-                        self.rhs.diff(*args, **kwargs))
+        # NOTE: as of SymPy 1.14.0, this method is never called.
+        # So, Derivative(Equation(...), variable) is only applied to the
+        # LHS.
+        return Equation(
+            Derivative(self.lhs, *args, **kwargs),
+            Derivative(self.rhs, *args, **kwargs)
+        )
 
     def _eval_Integral(self, *args, **kwargs):
-        side = kwargs.pop('side', None)  # Could not seem to pass values for
-        # `evaluate` through to here.
-        if side is None:
-            raise ValueError('You must specify `side="lhs"` or `side="rhs"` '
-                             'when integrating an Equation')
-        else:
-            try:
-                return (getattr(self, side).integrate(*args, **kwargs))
-            except AttributeError:
-                raise AttributeError('`side` must equal "lhs" or "rhs".')
+        return Equation(
+            Integral(self.lhs, *args, **kwargs),
+            Integral(self.rhs, *args, **kwargs)
+        )
 
     #####
     # Output helper functions
@@ -964,6 +922,29 @@ class Equation(Basic, EvalfMixin):
 
     def to_expr(self):
         return self.as_expr()
+
+    def diff(self, *symbols, **kwargs):
+        print("diff")
+        return self.func(
+            self.lhs.diff(*symbols, **kwargs),
+            self.rhs.diff(*symbols, **kwargs)
+        )
+
+    def integrate(
+        self, *args, meijerg=None, conds='piecewise', risch=None,
+        heurisch=None, manual=None, **kwargs
+    ):
+        print("integrate")
+        return self.func(
+            self.lhs.integrate(
+                *args, meijerg=meijerg, conds=conds, risch=risch,
+                heurisch=heurisch, manual=manual, **kwargs
+            ),
+            self.rhs.integrate(
+                *args, meijerg=meijerg, conds=conds, risch=risch,
+                heurisch=heurisch, manual=manual, **kwargs
+            ),
+        )
 
 
 Eqn = Equation
