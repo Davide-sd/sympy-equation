@@ -1,226 +1,3 @@
-"""
-This package uses a special version of sympy which defines an equation
-with a left-hand-side (lhs) and a right-
-hand-side (rhs) connected by the "=" operator (e.g. `p*V = n*R*T`).
-
-The intent is to allow using the mathematical tools in SymPy to rearrange
-equations and perform algebra in a stepwise fashion. In this way more people
-can successfully perform algebraic rearrangements without stumbling over
-missed details such as a negative sign. This mimics the capabilities available
-in [SageMath](https://www.sagemath.org/) and
-[Maxima](http://maxima.sourceforge.net/).
-
-This package also provides convenient settings for interactive use on the
-command line, in ipython and Jupyter notebook environments. See the
-documentation at https://gutow.github.io/Algebra_with_Sympy/.
-
-Explanation
-===========
-This class defines relations that all high school and college students
-would recognize as mathematical equations. At present only the "=" relation
-operator is recognized.
-
-This class is intended to allow using the mathematical tools in SymPy to
-rearrange equations and perform algebra in a stepwise fashion. In this
-way more people can successfully perform algebraic rearrangements without
-stumbling over missed details such as a negative sign.
-
-Create an equation with the call ``Equation(lhs,rhs)``, where ``lhs`` and
-``rhs`` are any valid Sympy expression. ``Eqn(...)`` is a synonym for
-``Equation(...)``.
-
-Parameters
-==========
-lhs: sympy expression, ``class Expr``.
-rhs: sympy expression, ``class Expr``.
-kwargs:
-
-Examples
-========
-NOTE: All the examples below are in vanilla python. You can get human
-readable eqautions "lhs = rhs" in vanilla python by adjusting the settings
-in `algwsym_config` (see it's documentation). Output is human readable by
-default in IPython and Jupyter environments.
->>> from algebra_with_sympy import *
->>> a, b, c, x = var('a b c x')
->>> Equation(a,b/c)
-Equation(a, b/c)
->>> t=Eqn(a,b/c)
->>> t
-Equation(a, b/c)
->>> t*c
-Equation(a*c, b)
->>> c*t
-Equation(a*c, b)
->>> exp(t)
-Equation(exp(a), exp(b/c))
->>> exp(log(t))
-Equation(a, b/c)
-
-Simplification and Expansion
->>> f = Eqn(x**2 - 1, c)
->>> f
-Equation(x**2 - 1, c)
->>> f/(x+1)
-Equation((x**2 - 1)/(x + 1), c/(x + 1))
->>> (f/(x+1)).simplify()
-Equation(x - 1, c/(x + 1))
->>> simplify(f/(x+1))
-Equation(x - 1, c/(x + 1))
->>> (f/(x+1)).expand()
-Equation(x**2/(x + 1) - 1/(x + 1), c/(x + 1))
->>> expand(f/(x+1))
-Equation(x**2/(x + 1) - 1/(x + 1), c/(x + 1))
->>> factor(f)
-Equation((x - 1)*(x + 1), c)
->>> f.factor()
-Equation((x - 1)*(x + 1), c)
->>> f2 = f+a*x**2+b*x +c
->>> f2
-Equation(a*x**2 + b*x + c + x**2 - 1, a*x**2 + b*x + 2*c)
->>> collect(f2,x)
-Equation(b*x + c + x**2*(a + 1) - 1, a*x**2 + b*x + 2*c)
-
-Apply operation to only one side
->>> poly = Eqn(a*x**2 + b*x + c*x**2, a*x**3 + b*x**3 + c*x)
->>> poly.applyrhs(factor,x)
-Equation(a*x**2 + b*x + c*x**2, x*(c + x**2*(a + b)))
->>> poly.applylhs(factor)
-Equation(x*(a*x + b + c*x), a*x**3 + b*x**3 + c*x)
->>> poly.applylhs(collect,x)
-Equation(b*x + x**2*(a + c), a*x**3 + b*x**3 + c*x)
-
-``.apply...`` also works with user defined python functions
->>> def addsquare(eqn):
-...     return eqn+eqn**2
-...
->>> t.apply(addsquare)
-Equation(a**2 + a, b**2/c**2 + b/c)
->>> t.applyrhs(addsquare)
-Equation(a, b**2/c**2 + b/c)
->>> t.apply(addsquare, side = 'rhs')
-Equation(a, b**2/c**2 + b/c)
->>> t.applylhs(addsquare)
-Equation(a**2 + a, b/c)
->>> addsquare(t)
-Equation(a**2 + a, b**2/c**2 + b/c)
-
-Inaddition to ``.apply...`` there is also the less general ``.do``,
-``.dolhs``, ``.dorhs``, which only works for operations defined on the
-``Expr`` class (e.g.``.collect(), .factor(), .expand()``, etc...).
->>> poly.dolhs.collect(x)
-Equation(b*x + x**2*(a + c), a*x**3 + b*x**3 + c*x)
->>> poly.dorhs.collect(x)
-Equation(a*x**2 + b*x + c*x**2, c*x + x**3*(a + b))
->>> poly.do.collect(x)
-Equation(b*x + x**2*(a + c), c*x + x**3*(a + b))
->>> poly.dorhs.factor()
-Equation(a*x**2 + b*x + c*x**2, x*(a*x**2 + b*x**2 + c))
-
-``poly.do.exp()`` or other sympy math functions will raise an error.
-
-Rearranging an equation (simple example made complicated as illustration)
->>> p, V, n, R, T = var('p V n R T')
->>> eq1=Eqn(p*V,n*R*T)
->>> eq1
-Equation(V*p, R*T*n)
->>> eq2 =eq1/V
->>> eq2
-Equation(p, R*T*n/V)
->>> eq3 = eq2/R/T
->>> eq3
-Equation(p/(R*T), n/V)
->>> eq4 = eq3*R/p
->>> eq4
-Equation(1/T, R*n/(V*p))
->>> 1/eq4
-Equation(T, V*p/(R*n))
->>> eq5 = 1/eq4 - T
->>> eq5
-Equation(0, -T + V*p/(R*n))
-
-Substitution (#'s and units)
->>> L, atm, mol, K = var('L atm mol K', positive=True, real=True) # units
->>> eq2.subs({R:0.08206*L*atm/mol/K,T:273*K,n:1.00*mol,V:24.0*L})
-Equation(p, 0.9334325*atm)
->>> eq2.subs({R:0.08206*L*atm/mol/K,T:273*K,n:1.00*mol,V:24.0*L}).evalf(4)
-Equation(p, 0.9334*atm)
-
-Substituting an equation into another equation:
->>> P, P1, P2, A1, A2, E1, E2 = symbols("P, P1, P2, A1, A2, E1, E2")
->>> eq1 = Eqn(P, P1 + P2)
->>> eq2 = Eqn(P1 / (A1 * E1), P2 / (A2 * E2))
->>> P1_val = (eq1 - P2).swap
->>> P1_val
-Equation(P1, P - P2)
->>> eq2 = eq2.subs(P1_val)
->>> eq2
-Equation((P - P2)/(A1*E1), P2/(A2*E2))
->>> P2_val = solve(eq2.subs(P1_val), P2).args[0]
->>> P2_val
-Equation(P2, A2*E2*P/(A1*E1 + A2*E2))
-
-Combining equations (Math with equations: lhs with lhs and rhs with rhs)
->>> q = Eqn(a*c, b/c**2)
->>> q
-Equation(a*c, b/c**2)
->>> t
-Equation(a, b/c)
->>> q+t
-Equation(a*c + a, b/c + b/c**2)
->>> q/t
-Equation(c, 1/c)
->>> t**q
-Equation(a**(a*c), (b/c)**(b/c**2))
-
-Utility operations
->>> t.reversed
-Equation(b/c, a)
->>> t.swap
-Equation(b/c, a)
->>> t.lhs
-a
->>> t.rhs
-b/c
->>> t.as_Boolean()
-Eq(a, b/c)
-
-`.check()` convenience method for `.as_Boolean().simplify()`
->>> from sympy import I, pi
->>> Equation(pi*(I+2), pi*I+2*pi).check()
-True
->>> Eqn(a,a+1).check()
-False
-
-Differentiation
-Differentiation is applied to both sides:
->>> q=Eqn(a*c, b/c**2)
->>> q
-Equation(a*c, b/c**2)
->>> diff(q,b)
-Equation(Derivative(a*c, b), c**(-2))
->>> diff(q,c)
-Equation(a, -2*b/c**3)
->>> diff(log(q),b)
-Equation(Derivative(log(a*c), b), 1/b)
->>> diff(q,c,2)
-Equation(Derivative(a, c), 6*b/c**4)
-
-Similarly, integration is applied to both sides:
->>> q=Eqn(a*c,b/c)
->>> integrate(q,b)
-Equation(a*c**2/2, b*log(c))
-
-Automatic solutions using sympy solvers. THIS IS EXPERIMENTAL. Please
-report issues at https://github.com/gutow/Algebra_with_Sympy/issues.
->>> tosolv = Eqn(a - b, c/a)
->>> solve(tosolv,a)
-FiniteSet(Equation(a, b/2 - sqrt(b**2 + 4*c)/2), Equation(a, b/2 + sqrt(b**2 + 4*c)/2))
->>> solve(tosolv, b)
-FiniteSet(Equation(b, (a**2 - c)/a))
->>> solve(tosolv, c)
-FiniteSet(Equation(c, a**2 - a*b))
-"""
 import sys
 import param
 import sympy
@@ -230,21 +7,17 @@ from sympy import *
 from sympy.core.basic import Basic
 from sympy.core.evalf import EvalfMixin
 
+
 class Equation(Basic, EvalfMixin):
     """
     This class defines an equation with a left-hand-side (lhs) and a right-
-    hand-side (rhs) connected by the "=" operator (e.g. `p*V = n*R*T`).
+    hand-side (rhs) connected by the "=" operator (e.g. `p*V = n*R*T`),
+    which supports mathematical operations like addition, subtraction,
+    multiplication, divison and exponentiation.
 
-    Explanation
-    ===========
-    This class defines relations that all high school and college students
-    would recognize as mathematical equations. At present only the "=" relation
-    operator is recognized.
-
-    This class is intended to allow using the mathematical tools in SymPy to
-    rearrange equations and perform algebra in a stepwise fashion. In this
-    way more people can successfully perform algebraic rearrangements without
-    stumbling over missed details such as a negative sign.
+    In particular, this class is intended to allow using the mathematical
+    tools in SymPy to rearrange equations and perform algebra in a stepwise
+    fashion.
 
     Create an equation with the call ``Equation(lhs,rhs)``, where ``lhs`` and
     ``rhs`` are any valid Sympy expression. ``Eqn(...)`` is a synonym for
@@ -252,18 +25,39 @@ class Equation(Basic, EvalfMixin):
 
     Parameters
     ==========
-    lhs: sympy expression, ``class Expr``.
-    rhs: sympy expression, ``class Expr``.
-    kwargs:
+    lhs : ``Expr``
+    rhs : ``Expr``
+
+    Attributes
+    ==========
+    lhs : ``Expr``
+        Left-hand side of the equation.
+    rhs : ``Expr``
+        Left-hand side of the equation.
+    swap : Equation
+        Swap the lhs and rhs sides.
+
+    Methods
+    =======
+    as_Boolean()
+        Convert the ``Equation`` to an ``Equality``.
+    as_expr()
+        Convert the ``Equation`` to a symbolic expression of the form 'lhs - rhs'.
+    check(**kwargs)
+        Forces simplification and casts as ``Equality`` to check validity.
+    to_expr()
+        Alias of ``as_expr()``.
+    cm()
+        Given and equation in the form ``Equation(a/b, c/d)``, cross-multiply
+        the members in order to get a new ``Equation(a*d, b*c)``.
+
 
     Examples
     ========
-    NOTE: If used with `algebra_with_sympy`
-    (https://github.com/gutow/Algebra_with_Sympy) you can get human-readable
-    output.
-    >>> from sympy import var, Equation, Eqn, exp, log, diff
-    >>> from sympy import integrate, Integral
-    >>> a, b, c, x = var('a b c x')
+
+    >>> from sympy import *
+    >>> from algebra_with_sympy import Eqn, Equation
+    >>> a, b, c, x = symbols('a b c x')
     >>> Equation(a,b/c)
     Equation(a, b/c)
     >>> t=Eqn(a,b/c)
@@ -273,13 +67,13 @@ class Equation(Basic, EvalfMixin):
     Equation(a*c, b)
     >>> c*t
     Equation(a*c, b)
-    >>> exp(t)
+    >>> t.apply(exp)
     Equation(exp(a), exp(b/c))
-    >>> exp(log(t))
+    >>> t.apply(lambda side: exp(log(side)))
     Equation(a, b/c)
 
-    Simplification and Expansion
-    >>> from sympy import simplify, expand, factor, collect
+    Simplification and Expansion:
+
     >>> f = Eqn(x**2 - 1, c)
     >>> f
     Equation(x**2 - 1, c)
@@ -303,7 +97,8 @@ class Equation(Basic, EvalfMixin):
     >>> collect(f2,x)
     Equation(b*x + c + x**2*(a + 1) - 1, a*x**2 + b*x + 2*c)
 
-    Apply operation to only one side
+    Apply operation to only one side:
+
     >>> poly = Eqn(a*x**2 + b*x + c*x**2, a*x**3 + b*x**3 + c*x)
     >>> poly.applyrhs(factor,x)
     Equation(a*x**2 + b*x + c*x**2, x*(c + x**2*(a + b)))
@@ -312,24 +107,26 @@ class Equation(Basic, EvalfMixin):
     >>> poly.applylhs(collect,x)
     Equation(b*x + x**2*(a + c), a*x**3 + b*x**3 + c*x)
 
-    ``.apply...`` also works with user defined python functions
-    >>> def addsquare(eqn):
+    ``.apply...`` also works with user defined python functions:
+
+    >>> def add_square(eqn):
     ...     return eqn+eqn**2
     ...
-    >>> t.apply(addsquare)
+    >>> t.apply(add_square)
     Equation(a**2 + a, b**2/c**2 + b/c)
-    >>> t.applyrhs(addsquare)
+    >>> t.applyrhs(add_square)
     Equation(a, b**2/c**2 + b/c)
-    >>> t.apply(addsquare, side = 'rhs')
+    >>> t.apply(add_square, side = 'rhs')
     Equation(a, b**2/c**2 + b/c)
-    >>> t.applylhs(addsquare)
+    >>> t.applylhs(add_square)
     Equation(a**2 + a, b/c)
-    >>> addsquare(t)
+    >>> add_square(t)
     Equation(a**2 + a, b**2/c**2 + b/c)
 
-    Inaddition to ``.apply...`` there is also the less general ``.do``,
+    In addition to ``.apply...`` there is also the less general ``.do``,
     ``.dolhs``, ``.dorhs``, which only works for operations defined on the
-    ``Expr`` class (e.g.``.collect(), .factor(), .expand()``, etc...).
+    ``Expr`` class (e.g.``.collect(), .factor(), .expand()``, etc...):
+
     >>> poly.dolhs.collect(x)
     Equation(b*x + x**2*(a + c), a*x**3 + b*x**3 + c*x)
     >>> poly.dorhs.collect(x)
@@ -341,7 +138,8 @@ class Equation(Basic, EvalfMixin):
 
     ``poly.do.exp()`` or other sympy math functions will raise an error.
 
-    Rearranging an equation (simple example made complicated as illustration)
+    Rearranging an equation (simple example made complicated as illustration):
+
     >>> p, V, n, R, T = var('p V n R T')
     >>> eq1=Eqn(p*V,n*R*T)
     >>> eq1
@@ -361,7 +159,8 @@ class Equation(Basic, EvalfMixin):
     >>> eq5
     Equation(0, -T + V*p/(R*n))
 
-    Substitution (#'s and units)
+    Substitution (#'s and units):
+
     >>> L, atm, mol, K = var('L atm mol K', positive=True, real=True) # units
     >>> eq2.subs({R:0.08206*L*atm/mol/K,T:273*K,n:1.00*mol,V:24.0*L})
     Equation(p, 0.9334325*atm)
@@ -369,6 +168,7 @@ class Equation(Basic, EvalfMixin):
     Equation(p, 0.9334*atm)
 
     Substituting an equation into another equation:
+
     >>> P, P1, P2, A1, A2, E1, E2 = var("P, P1, P2, A1, A2, E1, E2")
     >>> eq1 = Eqn(P, P1 + P2)
     >>> eq2 = Eqn(P1 / (A1 * E1), P2 / (A2 * E2))
@@ -392,7 +192,8 @@ class Equation(Basic, EvalfMixin):
     >>> t**q
     Equation(a**(a*c), (b/c)**(b/c**2))
 
-    Utility operations
+    Utility operations:
+
     >>> t.reversed
     Equation(b/c, a)
     >>> t.swap
@@ -404,56 +205,41 @@ class Equation(Basic, EvalfMixin):
     >>> t.as_Boolean()
     Eq(a, b/c)
 
-    `.check()` convenience method for `.as_Boolean().simplify()`
-    >>> from sympy import I, pi
+    `.check()` convenience method for `.as_Boolean().simplify()`:
+
     >>> Equation(pi*(I+2), pi*I+2*pi).check()
     True
     >>> Eqn(a,a+1).check()
     False
 
-    Differentiation
-    Differentiation is applied to both sides if the wrt variable appears on
-    both sides.
-    >>> q=Eqn(a*c, b/c**2)
+    Differentiation is applied to both sides:
+
+    >>> q=Eqn(a*b, b**2/c**2)
     >>> q
-    Equation(a*c, b/c**2)
+    Equation(a*b, b**2/c**2)
     >>> diff(q,b)
-    Equation(Derivative(a*c, b), c**(-2))
+    Equation(a, 2*b/c**2)
     >>> diff(q,c)
-    Equation(a, -2*b/c**3)
-    >>> diff(log(q),b)
-    Equation(Derivative(log(a*c), b), 1/b)
-    >>> diff(q,c,2)
-    Equation(Derivative(a, c), 6*b/c**4)
+    Equation(0, -2*b**2/c**3)
 
-    If you specify multiple differentiation all at once the assumption
-    is order of differentiation matters and the lhs will not be
-    evaluated.
-    >>> diff(q,c,b)
-    Equation(Derivative(a*c, b, c), -2/c**3)
-
-    To overcome this specify the order of operations.
-    >>> diff(diff(q,c),b)
-    Equation(Derivative(a, b), -2/c**3)
-
-    But the reverse order returns an unevaulated lhs (a may depend on b).
-    >>> diff(diff(q,b),c)
-    Equation(Derivative(a*c, b, c), -2/c**3)
-
-    Integration can only be performed on one side at a time.
+    Integration is applied to both sides:
     >>> q=Eqn(a*c,b/c)
-    >>> integrate(q,b,side='rhs')
-    b**2/(2*c)
-    >>> integrate(q,b,side='lhs')
-    a*b*c
-
-    Make a pretty statement of integration from an equation
-    >>> Eqn(Integral(q.lhs,b),integrate(q,b,side='rhs'))
-    Equation(Integral(a*c, b), b**2/(2*c))
+    >>> integrate(q,b)
+    Equation(a*b*c, b**2/(2*c))
 
     Integration of each side with respect to different variables
     >>> q.dorhs.integrate(b).dolhs.integrate(a)
     Equation(a**2*c/2, b**2/(2*c))
+
+    Automatic solutions using sympy solvers. THIS IS EXPERIMENTAL. Please
+    report issues at https://github.com/gutow/Algebra_with_Sympy/issues.
+    >>> tosolv = Eqn(a - b, c/a)
+    >>> solve(tosolv,a)
+    [Equation(a, b/2 - sqrt(b**2 + 4*c)/2), Equation(a, b/2 + sqrt(b**2 + 4*c)/2)]
+    >>> solve(tosolv, b)
+    [Equation(b, (a**2 - c)/a)]
+    >>> solve(tosolv, c)
+    [Equation(c, a**2 - a*b)]
     """
 
     def __new__(cls, lhs, rhs, **kwargs):
@@ -874,6 +660,24 @@ class Equation(Basic, EvalfMixin):
         return tempstr
 
     def split(self):
+        """Given an equation of the form `lhs = 0` or `0 = rhs`, where `lhs`
+        or `rhs` are additions, split the terms of the equation into separate
+        lhs and rhs by applying some rule.
+
+        Examples
+        --------
+        >>> from sympy import *
+        >>> from algebra_with_sympy import Eqn
+        >>> e = Eqn(a + b, 0)
+        >>> e.split()
+        Equation(b, -a)
+
+        >>> e = Equation(a * b - 2, c + d + a*b)
+        >>> (e - e.rhs).split().applylhs(lambda t: collect_const(t, 2))
+        Equation(2*(a*b - 1), c + d)
+
+
+        """
         if (self.lhs is not S.Zero) and (self.rhs is not S.Zero):
             return self
         eqn = self.rewrite(Add)
@@ -924,7 +728,6 @@ class Equation(Basic, EvalfMixin):
         return self.as_expr()
 
     def diff(self, *symbols, **kwargs):
-        print("diff")
         return self.func(
             self.lhs.diff(*symbols, **kwargs),
             self.rhs.diff(*symbols, **kwargs)
@@ -934,7 +737,6 @@ class Equation(Basic, EvalfMixin):
         self, *args, meijerg=None, conds='piecewise', risch=None,
         heurisch=None, manual=None, **kwargs
     ):
-        print("integrate")
         return self.func(
             self.lhs.integrate(
                 *args, meijerg=meijerg, conds=conds, risch=risch,
@@ -1011,10 +813,9 @@ class _output_settings(param.Parameterized):
         If `True` the human readable equation expression will be
         output in text interactive environments. Default = `False`.""")
 
-    solve_to_list = param.Boolean(False, doc="""
+    solve_to_list = param.Boolean(True, doc="""
         If `True` the results of a call to `solve(...)` will return a
-        Python `list` rather than a Sympy `FiniteSet`. This recovers
-        behavior for versions before 0.11.0.
+        Python `list` rather than a Sympy `FiniteSet`.
 
         Note: setting this `True` means that expressions within the
         returned solutions will not be pretty-printed in Jupyter and
