@@ -659,51 +659,6 @@ class Equation(Basic, EvalfMixin):
         tempstr += str(self.lhs) + ' = ' + str(self.rhs)
         return tempstr
 
-    def split(self):
-        """Given an equation of the form `lhs = 0` or `0 = rhs`, where `lhs`
-        or `rhs` are additions, split the terms of the equation into separate
-        lhs and rhs by applying some rule.
-
-        Examples
-        --------
-        >>> from sympy import *
-        >>> from algebra_with_sympy import Eqn
-        >>> e = Eqn(a + b, 0)
-        >>> e.split()
-        Equation(b, -a)
-
-        >>> e = Equation(a * b - 2, c + d + a*b)
-        >>> (e - e.rhs).split().applylhs(lambda t: collect_const(t, 2))
-        Equation(2*(a*b - 1), c + d)
-
-
-        """
-        if (self.lhs is not S.Zero) and (self.rhs is not S.Zero):
-            return self
-        eqn = self.rewrite(Add)
-        args = eqn.lhs.args
-        if not eqn.lhs.is_Add:
-            return self
-
-        def _sign(t):
-            if not t.is_Mul:
-                return 1
-            return sign(prod([a for a in t.args if a.is_number]))
-
-        if len(args) == 2:
-            a, b = args
-            if b.is_number:
-                # I want the number on the RHS
-                a, b = b, a
-            if _sign(b) <= 0:
-                # if possible, keep the LHS without negative sign
-                a, b = -a, -b
-            return self.func(b, -a)
-
-        pos = [a for a in args if _sign(a) > 0]
-        neg = [a for a in args if _sign(a) <= 0]
-        return self.func(Add(*pos), -Add(*neg))
-
     def cm(self):
         """Cross-multiply the members of the equation. For example:
 

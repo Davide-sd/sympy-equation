@@ -20,6 +20,7 @@ from sympy import sqrt, root, Heaviside
 import pytest
 import sys
 algwsym_config.output.show_label = True
+algwsym_config.output.solve_to_list = False
 
 a, b, c, d = symbols("a, b, c, d")
 
@@ -422,21 +423,6 @@ def test_issue_23():
     # This gave a key error
     a, t = symbols('a t')
     assert simplify(a * cos(t) + sin(t)) == a * cos(t) + sin(t)
-
-
-@pytest.mark.parametrize("eqn, expected", [
-    (Eqn(a + b, 0), Eqn(b, -a)),
-    (Eqn(a - b, 0), Eqn(b, a)),
-    (Eqn(-a - b, 0), Eqn(b, -a)),
-    (Eqn(a + b - 1, 0), Eqn(a + b - 1, 0)),
-    (Eqn(a * b - 1, 0), Eqn(a * b, 1)),
-    (Eqn(-a * b - 1, 0), Eqn(a * b, -1)),
-    (Eqn(a * (b + 1) - 1, 0), Eqn(a * (b + 1), 1)),
-    (Eqn(-a * (b + 1) - 1, 0), Eqn(a * (b + 1), -1)),
-
-])
-def test_split(eqn, expected):
-    assert eqn.split() == expected
 
 
 @pytest.mark.parametrize("eqn, expected", [
