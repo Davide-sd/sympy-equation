@@ -383,12 +383,10 @@ class Equation(Basic, EvalfMixin):
             else:
                 func = getattr(self.eqn.lhs, name, None)
             if func is None:
-                raise AttributeError('Expressions in the equation have no '
-                                     'attribute `' + str(
-                    name) + '`. Try `.apply('
-                                     + str(name) + ', *args)` or '
-                                                   'pass the equation as a parameter to `'
-                                     + str(name) + '()`.')
+                raise AttributeError(
+                    f'Expressions in the equation have no attribute `{name}`.'
+                    f' Try `.apply({name}, *args)` or pass the equation as'
+                    f' a parameter to `{name}()`.')
             return functools.partial(self.eqn.apply, func, side=self.side)
 
     @property
@@ -623,6 +621,10 @@ class Equation(Basic, EvalfMixin):
                         self.rhs.evalf(*args, **kwargs))
 
     n = evalf
+
+    def nsimplify(self, **kwargs):
+        """See the documentation of nsimplify function in sympy.simplify."""
+        return self.func(*[t.nsimplify(**kwargs) for t in self.args])
 
     def _eval_derivative(self, *args, **kwargs):
         # NOTE: as of SymPy 1.14.0, this method is never called.

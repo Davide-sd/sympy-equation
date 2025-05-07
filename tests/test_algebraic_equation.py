@@ -440,3 +440,11 @@ def test_cross_multiply(eqn, expected):
 ])
 def test_as_expr(eqn, expr):
     assert eqn.as_expr() == expr
+
+
+@pytest.mark.parametrize("eqn, kwargs, res", [
+    (Eqn(pi, b * c * 0.5), {}, Equation(pi, b*c/2)),
+    (Eqn(pi, b * c * 0.5), {"tolerance": 0.1}, Equation(Rational(22, 7), b*c/2)),
+])
+def test_nsimplify(eqn, kwargs, res):
+    assert eqn.nsimplify(**kwargs) == res
