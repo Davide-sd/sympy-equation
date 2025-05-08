@@ -1,19 +1,20 @@
 import setuptools
+import os
+
+
+here = os.path.dirname(os.path.abspath(__file__))
+version_ns = {}
+with open(os.path.join(here, 'algebra_with_sympy', '_version.py')) as f:
+    exec (f.read(), {}, version_ns)
 
 with open("ReadMe.md", "r") as f:
     long_description = f.read()
-try:
-    from version import __version__
-    f = open('algebra_with_sympy/version.py','w')
-    f.write("__version__ = \"" + str(__version__) + "\"")
-    f.close()
-except Exception as e:
-    raise RuntimeError('Unable to find __version__') from e
+
 
 setuptools.setup(
     name="Algebra_with_SymPy",
     url = "https://gutow.github.io/Algebra_with_Sympy/",
-    version=__version__,
+    version=version_ns["__version__"],
     description="Equations that can be algebraicly manipulated.",
     long_description=long_description,
     long_description_content_type="text/markdown",
