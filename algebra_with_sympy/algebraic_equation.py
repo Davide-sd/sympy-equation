@@ -1149,26 +1149,13 @@ def solveset(f, symbols, domain=sympy.Complexes):
     return solns
 
 
-class Equality(Equality):
+def _eq_to_eqn(self):
+    """Convert the Equality as an Equation.
     """
-    Extension of Equality class to include the ability to convert it to an
-    Equation.
-    """
-    def to_Equation(self):
-        """
-        Return: recasts the Equality as an Equation.
-        """
-        return Equation(self.lhs,self.rhs)
-
-    def to_Eqn(self):
-        """
-        Synonym for to_Equation.
-        Return: recasts the Equality as an Equation.
-        """
-        return self.to_Equation()
+    return Equation(self.lhs, self.rhs)
 
 
-Eq = Equality
+Equality.to_Equation = _eq_to_eqn
 
 
 def __FiniteSet__repr__override__(self):

@@ -1,6 +1,6 @@
 from sympy import (
     symbols, integrate, simplify, expand, factor, Integral, Add,
-    diff, FiniteSet, Function, Matrix, S,
+    diff, FiniteSet, Function, Matrix, S, Eq, Equality,
     sin, cos, log, exp, latex, Symbol, I, pi, Float, Derivative, Rational,
     oo, Piecewise, gamma, sign, re,
 )
@@ -9,8 +9,6 @@ from sympy.printing.latex import LatexPrinter
 from algebra_with_sympy.algebraic_equation import (
     Eqn,
     Equation,
-    Equality,
-    Eq,
     units, solve,
     collect,
     algwsym_config,
@@ -349,7 +347,6 @@ def test_equality_extension():
     a, b, c, x = symbols('a b c x')
     tstequal = Equality(a, b / c)
     assert(tstequal.to_Equation() == Equation(a, b / c))
-    assert(tstequal.to_Eqn()== Equation(a, b / c))
 
 
 def test_apply_syntax():
