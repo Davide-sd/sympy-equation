@@ -708,109 +708,62 @@ class Equation(Basic, EvalfMixin):
 
 Eqn = Equation
 
-class _algwsym_config():
-
-    def __init__(self):
-        """
-        This is a class to hold parameters that control behavior of
-        the algebra_with_sympy package.
-
-        Settings
-        ========
-        Printing
-        --------
-        In interactive environments the default output of an equation is a
-        human readable string with the two sides connected by an equals
-        sign or a typeset equation with the two sides connected by an equals sign.
-        `print(Eqn)` or `str(Eqn)` will return this human readable text version of
-        the equation as well. This is consistent with python standards, but not
-        sympy, where `str()` is supposed to return something that can be
-        copy-pasted into code. If the equation has a declared name as in `eq1 =
-        Eqn(a,b/c)` the name will be displayed to the right of the equation in
-        parentheses (eg. `a = b/c    (eq1)`). Use `print(repr(Eqn))` instead of
-        `print(Eqn)` or `repr(Eqn)` instead of `str(Eqn)` to get a code
-        compatible version of the equation.
-
-        You can adjust this behavior using some flags that impact output:
-        * `algwsym_config.output.human_text` default is `True`.
-        * `algwsym_config.output.show_label` default is `True`.
-        * `algwsym_config.output.latex_as_equations` default is `False`
-
-        A second flag `algwsym_config.output.human_text` is useful in
-        text-based interactive environments such as command line python or
-        ipython. If this flag is true `repr` will return `str`. Thus the human
-        readable text will be printed as the output of a line that is an
-        expression containing an equation.
-        Default is `True`.
-
-        Setting both of these flags to true in a command line or ipython
-        environment will show both the code version and the human readable text.
-        These flags impact the behavior of the `print(Eqn)` statement.
-
-        The third flag `algwsym_config.output.show_label` has a default value of
-        `True`. Setting this to `False` suppresses the labeling of an equation
-        with its python name off to the right of the equation.
-
-        The fourth flag `algwsym_config.output.latex_as_equations` has
-        a default value of `False`. Setting this to `True` wraps
-        output as LaTex equations wrapping them in `\\begin{equation}...\\end{
-        equation}`.
-        """
-        self.output = _output_settings()
-        self.numerics = _numerics_settings()
-
-class _output_settings(param.Parameterized):
+class _algwsym_config(param.Parameterized):
 
     show_label = param.Boolean(False, doc="""
         If `True` a label with the name of the equation in the python
-        environment will be shown on the screen.
-        Default = `False`.""")
+        environment will be shown on the screen. Default = `False`.""")
 
     human_text = param.Boolean(False, doc="""
-        If `True` the human readable equation expression will be
-        output in text interactive environments. Default = `False`.""")
+        For text-based interactive environments, or for Python consoles,
+        by entering the name of the equation and executing this line of code
+        it will show the equation in textual format. If ``human_text=True``
+        the equation will be shown as "lhs = rhs". If ``False``, it will be
+        shown as ``Equation(lhs, rhs)``.""")
 
     solve_to_list = param.Boolean(True, doc="""
-        If `True` the results of a call to `solve(...)` will return a
-        Python `list` rather than a Sympy `FiniteSet`.
+        If ``True`` the results of a call to ``solve(...)`` will return a
+        Python ``list`` rather than a Sympy ``FiniteSet``.
 
         Note: setting this `True` means that expressions within the
-        returned solutions will not be pretty-printed in Jupyter and
+        returned solutions might not be pretty-printed in Jupyter and
         IPython.""")
 
     latex_as_equations = param.Boolean(False, doc="""
         If `True` any output that is returned as LaTex for
         pretty-printing will be wrapped in the formal Latex for an
-        equation. For example rather than
+        equation. For example rather than:
         ```
         $\\frac{a}{b}=c$
         ```
-        the output will be
+        the output will be:
         ```
         \\begin{equation}\\frac{a}{b}=c\\end{equation}
-        ```""")
+        ```
+        In an interactive environment like Jupyter notebook, this effectively
+        moves the equation horizontally to the center of the screen.""")
 
     latex_printer = param.Callable(latex, doc="""
         The latex printer function which will be used to create
         the latex output to be shown on the screen.""")
 
-class _numerics_settings(param.Parameterized):
-
     integers_as_exact = param.Boolean(False, doc="""
-        *This is a flag for informational purposes and interface
-        consistency. Changing the value will not change the behavior.**
+        If running in an IPython/Jupyter environment, preparse the content
+        of a code line in order to convert integer numbers to sympy's Integer.
+        This can be handy when writing expressions containing rational number:
+        by settings this to ``True`` for example, we can write 2/3 which will
+        be automatically converted to Integer(2)/Integer(3) which than SymPy
+        would convert to Rational(2, 3). If ``False``, no preparsing would
+        be done, and Python would be evaluated 2/3 to 0.6666667, which will
+        then be converted by SymPy to a Float.
 
-        To change the behavior call:
-        * `unset_integers_as_exact()` to turn this feature off.
-        * `set_integers_as_exact()` to turn this feature on (on by
-        default).
-
-        If set to `True` (the default) and if running in an
-        IPython/Jupyter environment any number input without a decimal
-        will be interpreted as a sympy integer. Thus, fractions and
-        related expressions will not evalute to floating point numbers,
-        but be maintained as exact expressions (e.g. 2/3 -> 2/3 not the
-        float 0.6666...).""")
+        However, it is reccommended to set this options to ``True`` if we
+        are only using SymPy and symbolic operations, not when we are using
+        other numerical libraries, such as Numpy, because it will create hard
+        to debug situation. Consider this line of code: ``np.cos(np.pi / 4)``.
+        This will raise an error, because 4 is first converted to
+        sympy's Integer, then ``np.pi / 4`` becomes a symbolic expression
+        and ``np.cos`` is unable to evaluate it.""")
 
     @param.depends("integers_as_exact", watch=True)
     def _update_integers_as_exact(self):
@@ -846,9 +799,9 @@ def __latex_override__(expr, *arg):
     else:
         algwsym_config = globals()['algwsym_config']
     if algwsym_config:
-        show_label = algwsym_config.output.show_label
-        latex_as_equations = algwsym_config.output.latex_as_equations
-        latex_printer = algwsym_config.output.latex_printer
+        show_label = algwsym_config.show_label
+        latex_as_equations = algwsym_config.latex_as_equations
+        latex_printer = algwsym_config.latex_printer
     if latex_as_equations:
         return r'\begin{equation}'+latex_printer(expr)+r'\end{equation}'
     else:
@@ -874,7 +827,7 @@ def __command_line_printing__(expr, *arg):
     # print('Entering __command_line_printing__')
     human_text = True
     if algwsym_config:
-        human_text = algwsym_config.output.human_text
+        human_text = algwsym_config.human_text
     tempstr = ''
     if not human_text:
         return print(tempstr + repr(expr))
@@ -883,7 +836,7 @@ def __command_line_printing__(expr, *arg):
         namestr = ''
         if isinstance(expr, Equation):
             namestr = expr._get_eqn_name()
-        if namestr != '' and algwsym_config.output.show_label:
+        if namestr != '' and algwsym_config.show_label:
             labelstr += '          (' + namestr + ')'
         return print(tempstr + str(expr) + labelstr)
 
@@ -924,7 +877,7 @@ def set_integers_as_exact():
     """This operation uses `sympy.interactive.session.int_to_Integer`, which
     causes any number input without a decimal to be interpreted as a sympy
     integer, to pre-parse input cells. It also sets the flag
-    `algwsym_config.numerics.integers_as_exact = True` This is the default
+    `algwsym_config.integers_as_exact = True` This is the default
     mode of algebra_with_sympy. To turn this off call
     `unset_integers_as_exact()`.
     """
@@ -939,7 +892,7 @@ def set_integers_as_exact():
             get_ipython().input_transformers_post.append(integers_as_exact)
             algwsym_config = get_ipython().user_ns.get("algwsym_config", False)
             if algwsym_config:
-                algwsym_config.numerics.integers_as_exact = True
+                algwsym_config.integers_as_exact = True
             else:
                 raise ValueError("The algwsym_config object does not exist.")
     return
@@ -949,11 +902,11 @@ def unset_integers_as_exact():
     decimals being interpreted as sympy integers. Numbers input without a
     decimal may be interpreted as floating point if they are part of an
     expression that undergoes python evaluation (e.g. 2/3 -> 0.6666...). It
-    also sets the flag `algwsym_config.numerics.integers_as_exact = False`.
+    also sets the flag `algwsym_config.integers_as_exact = False`.
     Call `set_integers_as_exact()` to avoid this conversion of rational
     fractions and related expressions to floating point. Algebra_with_sympy
     starts with `set_integers_as_exact()` enabled (
-    `algwsym_config.numerics.integers_as_exact = True`).
+    `algwsym_config.integers_as_exact = True`).
     """
     ip = False
     try:
@@ -971,7 +924,7 @@ def unset_integers_as_exact():
                     pre.remove(k)
             algwsym_config = get_ipython().user_ns.get("algwsym_config", False)
             if algwsym_config:
-                algwsym_config.numerics.integers_as_exact = False
+                algwsym_config.integers_as_exact = False
             else:
                 raise ValueError("The algwsym_config object does not exist.")
 
@@ -1039,7 +992,7 @@ def solve(f, *symbols, **flags):
     equation or set of equations.
 
     To get a Python `list` of solutions (pre-0.11.0 behavior) rather than a
-    `FiniteSet` issue the command `algwsym_config.output.solve_to_list = True`.
+    `FiniteSet` issue the command `algwsym_config.solve_to_list = True`.
     This also prevents pretty-printing in IPython and Jupyter.
 
     Examples
@@ -1056,15 +1009,15 @@ def solve(f, *symbols, **flags):
     {{x = -3, y = 3}, {x = -1, y = -1}, {x = 1, y = 1}, {x = 3, y = -3}}
 
     To get raw output turn off by setting
-    >>> algwsym_config.output.human_text=False
+    >>> algwsym_config.human_text=False
     >>> B
     FiniteSet(FiniteSet(Equation(x, -3), Equation(y, 3)), FiniteSet(Equation(x, -1), Equation(y, -1)), FiniteSet(Equation(x, 1), Equation(y, 1)), FiniteSet(Equation(x, 3), Equation(y, -3)))
 
     Pre-0.11.0 behavior where a python list of solutions is returned
-    >>> algwsym_config.output.solve_to_list = True
+    >>> algwsym_config.solve_to_list = True
     >>> solve((eq1,eq2))
     [[Equation(x, -3), Equation(y, 3)], [Equation(x, -1), Equation(y, -1)], [Equation(x, 1), Equation(y, 1)], [Equation(x, 3), Equation(y, -3)]]
-    >>> algwsym_config.output.solve_to_list = False # reset to default
+    >>> algwsym_config.solve_to_list = False # reset to default
 
     """
     from sympy.solvers.solvers import solve
@@ -1107,7 +1060,7 @@ def solve(f, *symbols, **flags):
                     val = k[key]
                     tempeqn = Eqn(key, val)
                     solnset.append(tempeqn)
-                if not algwsym_config.output.solve_to_list:
+                if not algwsym_config.solve_to_list:
                     solnset = FiniteSet(*solnset)
                 else:
                     if len(solnset) == len(symbols):
@@ -1116,7 +1069,7 @@ def solve(f, *symbols, **flags):
                 solns.append(solnset)
     else:
         solns = result
-    if algwsym_config.output.solve_to_list:
+    if algwsym_config.solve_to_list:
         if len(solns) == 1 and hasattr(solns[0], "__iter__"):
             # no need to wrap a list of a single element inside another list
             return solns[0]
@@ -1170,15 +1123,15 @@ def solveset(f, symbols, domain=sympy.Complexes):
     #                 val = k[key]
     #                 tempeqn = Eqn(key, val)
     #                 solnset.append(tempeqn)
-    #                 if algwsym_config.output.show_solve_output:
+    #                 if algwsym_config.show_solve_output:
     #                     displayset.append(tempeqn)
-    #             if algwsym_config.output.show_solve_output:
+    #             if algwsym_config.show_solve_output:
     #                 displayset.append('-----')
     #             solns.append(solnset)
-    #             if algwsym_config.output.show_solve_output:
+    #             if algwsym_config.show_solve_output:
     #                 for k in displayset:
     #                     displaysolns.append(k)
-    #         if algwsym_config.output.show_solve_output:
+    #         if algwsym_config.show_solve_output:
     #             display(*displaysolns)
     # else:
     solns = result
