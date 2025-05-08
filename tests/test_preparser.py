@@ -1,18 +1,21 @@
 #!ipython
-from algebra_with_sympy.preparser import algebra_with_sympy_preparser as parser
-from algebra_with_sympy.preparser import integers_as_exact
+from algebra_with_sympy.preparser import (
+    algebra_with_sympy_preparser as parser,
+    integers_as_exact,
+)
 from IPython import get_ipython
 from pytest import raises
 
-if not(get_ipython()):
-    raise EnvironmentError('This test module file must be run in an ipython '
-                           'environment. Use `ipython -m pytest path-to-file`.'
-                           ' To avoid running this file in a general test '
-                           'use `pytest --ignore-glob="*testpreparser.py"`')
 
 def test_install_preparser():
-    assert(get_ipython())
+    if not(get_ipython()):
+        raise EnvironmentError(
+            'This test module file must be run in an ipython '
+            'environment. Use `ipython -m pytest path-to-file`. '
+            'To avoid running this file in a general test '
+            'use `pytest --ignore-glob="*testpreparser.py"`')
     get_ipython().input_transformers_post.append(parser)
+
 
 def test_parsing():
     lines = []
@@ -44,6 +47,7 @@ def test_parsing():
     expected_out.append('eq1 = Eqn( a + b , c/d )\n')
     assert parser(lines) == expected_out
 
+
 def test_parsing_errors():
     lines = []
     expected_out = []
@@ -52,6 +56,7 @@ def test_parsing_errors():
     assert parser(lines) == expected_out
     lines.append('eq1 =@ a + b > c/d\n')
     raises(ValueError, lambda: parser(lines))
+
 
 def test_integers_as_exact():
     lines = []
