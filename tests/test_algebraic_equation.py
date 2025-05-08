@@ -1,6 +1,6 @@
 from sympy import (
     symbols, integrate, simplify, expand, factor, Integral, Add,
-    diff, FiniteSet, Function, Matrix, S, Eq,
+    diff, FiniteSet, Function, Matrix, S,
     sin, cos, log, exp, latex, Symbol, I, pi, Float, Derivative, Rational,
     oo, Piecewise, gamma, sign, re,
 )
@@ -10,6 +10,7 @@ from algebra_with_sympy.algebraic_equation import (
     Eqn,
     Equation,
     Equality,
+    Eq,
     units, solve,
     collect,
     algwsym_config,

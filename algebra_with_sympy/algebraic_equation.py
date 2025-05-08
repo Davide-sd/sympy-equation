@@ -1,11 +1,18 @@
 import sys
 import param
 import sympy
-from algebra_with_sympy.preparser import integers_as_exact
-from sympy import *
-
-from sympy.core.basic import Basic
+from  sympy import (
+    Expr, Basic, Equality, Add, symbols, Equality,
+    solve, solveset, latex, Abs, Integral, fraction
+)
+from sympy.core.add import _unevaluated_Add
 from sympy.core.evalf import EvalfMixin
+from sympy.core.sympify import _sympify
+from sympy.simplify.radsimp import collect
+# NOTE: by executing the following import, the module will automatically
+# load the preparser that allows the syntax my_eq =@ lhs = rhs.
+from algebra_with_sympy.preparser import integers_as_exact
+
 
 
 class Equation(Basic, EvalfMixin):
@@ -94,7 +101,7 @@ class Equation(Basic, EvalfMixin):
     >>> f2 = f+a*x**2+b*x +c
     >>> f2
     Equation(a*x**2 + b*x + c + x**2 - 1, a*x**2 + b*x + 2*c)
-    >>> collect(f2,x)
+    >>> f2.do.collect(x)
     Equation(b*x + c + x**2*(a + 1) - 1, a*x**2 + b*x + 2*c)
 
     Apply operation to only one side:
@@ -231,8 +238,10 @@ class Equation(Basic, EvalfMixin):
     >>> q.dorhs.integrate(b).dolhs.integrate(a)
     Equation(a**2*c/2, b**2/(2*c))
 
-    Automatic solutions using sympy solvers. THIS IS EXPERIMENTAL. Please
+    Automatic solutions using solvers. THIS IS EXPERIMENTAL. Please
     report issues at https://github.com/gutow/Algebra_with_Sympy/issues.
+
+    >>> from algebra_with_sympy import solve
     >>> tosolv = Eqn(a - b, c/a)
     >>> solve(tosolv,a)
     [Equation(a, b/2 - sqrt(b**2 + 4*c)/2), Equation(a, b/2 + sqrt(b**2 + 4*c)/2)]
@@ -243,8 +252,6 @@ class Equation(Basic, EvalfMixin):
     """
 
     def __new__(cls, lhs, rhs, **kwargs):
-        from sympy.core.sympify import _sympify
-        from sympy.core.expr import Expr
         lhs = _sympify(lhs)
         rhs = _sympify(rhs)
         if not isinstance(lhs, Expr) or not isinstance(rhs, Expr):
@@ -284,7 +291,6 @@ class Equation(Basic, EvalfMixin):
         """
         Converts the equation to an Equality.
         """
-        from sympy import Equality
         return Equality(self.lhs, self.rhs)
 
     def check(self, **kwargs):
@@ -298,7 +304,6 @@ class Equation(Basic, EvalfMixin):
         -------
         True, False or an unevaluated `Equality` if truth cannot be determined.
         """
-        from sympy.core.relational import Equality
         return Equality(self.lhs, self.rhs, **kwargs).simplify()
 
     @property
@@ -422,7 +427,7 @@ class Equation(Basic, EvalfMixin):
         ========
         >>> from sympy import Add
         >>> from sympy.abc import b, x
-        >>> from sympy import Equation
+        >>> from algebra_with_sympy import Equation
         >>> eq = Equation(x + b, x - b)
         >>> eq.rewrite(Add)
         Equation(2*b, 0)
@@ -435,8 +440,6 @@ class Equation(Basic, EvalfMixin):
         >>> eq.rewrite(Add, eqn=False, evaluate=False).args
         (b, x, b, -x)
         """
-        from sympy import Add
-        from sympy.core.add import _unevaluated_Add
         if rule == Add:
             # NOTE: the code about `evaluate` is very similar to
             # sympy.core.relational.Equality._eval_rewrite_as_Add
@@ -485,7 +488,7 @@ class Equation(Basic, EvalfMixin):
         ========
 
         >>> from sympy.abc import a, b, c, x
-        >>> from sympy import Equation
+        >>> from algebra_with_sympy import Equation
         >>> eq = Equation(x + a, b * c)
 
         Substitute a single value:
@@ -609,7 +612,6 @@ class Equation(Basic, EvalfMixin):
         return self._eval_factor(*args, **kwargs)
 
     def _eval_collect(self, *args, **kwargs):
-        from sympy.simplify.radsimp import collect
         return Equation(collect(self.lhs, *args, **kwargs),
                         collect(self.rhs, *args, **kwargs))
 
@@ -823,6 +825,7 @@ def __latex_override__(expr, *arg):
         else:
             return '$'+latex_printer(expr) + '$'
 
+
 def __command_line_printing__(expr, *arg):
     # print('Entering __command_line_printing__')
     human_text = True
@@ -839,6 +842,7 @@ def __command_line_printing__(expr, *arg):
         if namestr != '' and algwsym_config.show_label:
             labelstr += '          (' + namestr + ')'
         return print(tempstr + str(expr) + labelstr)
+
 
 # Now we inject the formatting override(s)
 ip = None
@@ -872,7 +876,7 @@ else:
     # print("Overriding command line printing of python.")
     sys.displayhook = __command_line_printing__
 
-# Numerics controls
+
 def set_integers_as_exact():
     """This operation uses `sympy.interactive.session.int_to_Integer`, which
     causes any number input without a decimal to be interpreted as a sympy
@@ -896,6 +900,7 @@ def set_integers_as_exact():
             else:
                 raise ValueError("The algwsym_config object does not exist.")
     return
+
 
 def unset_integers_as_exact():
     """This operation disables forcing of numbers input without
@@ -930,11 +935,13 @@ def unset_integers_as_exact():
 
     return
 
+
 Eqn = Equation
 if ip and "text/latex" not in formatter.active_types:
-    old = formatter.formatters['text/plain'].for_type(Eqn,
-                                                __command_line_printing__)
+    old = formatter.formatters['text/plain'].for_type(
+        Eqn, __command_line_printing__)
     # print("For type Equation overriding plain text formatter = " + str(old))
+
 
 def units(names):
     """
@@ -997,6 +1004,9 @@ def solve(f, *symbols, **flags):
 
     Examples
     --------
+    >>> from algebra_with_sympy import Equation, solve, algwsym_config
+    >>> algwsym_config.solve_to_list = False
+    >>> algwsym_config.human_text = True
     >>> a, b, c, x, y = symbols('a b c x y', real = True)
     >>> import sys
     >>> sys.displayhook = __command_line_printing__ # set by default on normal initialization.
@@ -1082,6 +1092,7 @@ def solve(f, *symbols, **flags):
                     return k
         return FiniteSet(*solns)
 
+
 def solveset(f, symbols, domain=sympy.Complexes):
     """
     Very experimental override of sympy solveset, which we hope will replace
@@ -1156,7 +1167,9 @@ class Equality(Equality):
         """
         return self.to_Equation()
 
+
 Eq = Equality
+
 
 def __FiniteSet__repr__override__(self):
     """Override of the `FiniteSet.__repr__(self)` to overcome sympy's
@@ -1170,7 +1183,9 @@ def __FiniteSet__repr__override__(self):
     reprstr = "FiniteSet("+ insidestr + ")"
     return reprstr
 
+
 sympy.sets.FiniteSet.__repr__ = __FiniteSet__repr__override__
+
 
 def __FiniteSet__str__override__(self):
     """Override of the `FiniteSet.__str__(self)` to overcome sympy's
@@ -1184,7 +1199,5 @@ def __FiniteSet__str__override__(self):
     strrep = "{"+ insidestr + "}"
     return strrep
 
-sympy.sets.FiniteSet.__str__ = __FiniteSet__str__override__
 
-# Redirect python abs() to Abs()
-abs = Abs
+sympy.sets.FiniteSet.__str__ = __FiniteSet__str__override__
