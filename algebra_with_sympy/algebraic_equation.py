@@ -38,14 +38,23 @@ class Equation(Basic, EvalfMixin):
     Attributes
     ==========
     lhs : ``Expr``
-        Left-hand side of the equation.
+        Return the left-hand side of the equation.
     rhs : ``Expr``
-        Left-hand side of the equation.
+        Return the right-hand side of the equation.
     swap : Equation
         Swap the lhs and rhs sides.
 
     Methods
     =======
+    apply(func, *args)
+        Apply a function ``func`` with arguments ``*args`` to both sides
+        of the equation.
+    applylhs(func, *args)
+        Apply a function ``func`` with arguments ``*args`` to the lhs of
+        the equation.
+    applyrhs(func, *args)
+        Apply a function ``func`` with arguments ``*args`` to the rhs of
+        the equation.
     as_Boolean()
         Convert the ``Equation`` to an ``Equality``.
     as_expr()
@@ -55,7 +64,7 @@ class Equation(Basic, EvalfMixin):
     to_expr()
         Alias of ``as_expr()``.
     cm()
-        Given and equation in the form ``Equation(a/b, c/d)``, cross-multiply
+        Given and equation ``Equation(a/b, c/d)``, cross-multiply
         the members in order to get a new ``Equation(a*d, b*c)``.
 
 
@@ -64,22 +73,62 @@ class Equation(Basic, EvalfMixin):
 
     >>> from sympy import *
     >>> from algebra_with_sympy import Eqn, Equation
-    >>> a, b, c, x = symbols('a b c x')
-    >>> Equation(a,b/c)
-    Equation(a, b/c)
-    >>> t=Eqn(a,b/c)
-    >>> t
-    Equation(a, b/c)
-    >>> t*c
-    Equation(a*c, b)
-    >>> c*t
-    Equation(a*c, b)
-    >>> t.apply(exp)
-    Equation(exp(a), exp(b/c))
-    >>> t.apply(lambda side: exp(log(side)))
-    Equation(a, b/c)
+    >>> a, b, c, d, e, x = symbols('a, b, c, d, e, x')
 
-    Simplification and Expansion:
+    Mathematical operations between an equation and a scalar value:
+
+    >>> eq = Eqn(a, b/c)
+    >>> eq
+    Equation(a, b/c)
+    >>> eq + d
+    Equation(a + d, b/c + d)
+    >>> eq - d
+    Equation(a - d, b/c - d)
+    >>> eq * c
+    Equation(a*c, b)
+    >>> c * eq
+    Equation(a*c, b)
+    >>> eq / c
+    Equation(a/c, b/c**2)
+    >>> c / eq
+    Equation(c/a, c**2/b)
+    >>> eq ** d
+    Equation(a**d, (b/c)**d)
+    >>> d ** eq
+    Equation(d**a, d**(b/c))
+
+    Mathematical operations between two equations:
+
+    >>> e1 = Eqn(a, b + c)
+    >>> e2 = Eqn(e, d - a)
+    >>> e1 + e2
+    Equation(a + e, -a + b + c + d)
+    >>> e1 - e2
+    Equation(a - e, a + b + c - d)
+    >>> e1 * e2
+    Equation(a*e, (-a + d)*(b + c))
+    >>> e1 / e2
+    Equation(a/e, (b + c)/(-a + d))
+    >>> e1 ** e2
+    Equation(a**e, (b + c)**(-a + d))
+
+    Apply mathematical functions to the equation:
+
+    >>> eq.apply(exp)
+    Equation(exp(a), exp(b/c))
+    >>> def add_square(eqn):
+    ...     return eqn+eqn**2
+    ...
+    >>> add_square(eq)
+    Equation(a**2 + a, b**2/c**2 + b/c)
+    >>> eq.apply(add_square)
+    Equation(a**2 + a, b**2/c**2 + b/c)
+    >>> eq.applylhs(add_square)
+    Equation(a**2 + a, b/c)
+    >>> eq.applyrhs(add_square)
+    Equation(a, b**2/c**2 + b/c)
+
+    Expression manipulation:
 
     >>> f = Eqn(x**2 - 1, c)
     >>> f
@@ -98,42 +147,17 @@ class Equation(Basic, EvalfMixin):
     Equation((x - 1)*(x + 1), c)
     >>> f.factor()
     Equation((x - 1)*(x + 1), c)
-    >>> f2 = f+a*x**2+b*x +c
-    >>> f2
-    Equation(a*x**2 + b*x + c + x**2 - 1, a*x**2 + b*x + 2*c)
-    >>> f2.do.collect(x)
-    Equation(b*x + c + x**2*(a + 1) - 1, a*x**2 + b*x + 2*c)
-
-    Apply operation to only one side:
-
-    >>> poly = Eqn(a*x**2 + b*x + c*x**2, a*x**3 + b*x**3 + c*x)
-    >>> poly.applyrhs(factor,x)
-    Equation(a*x**2 + b*x + c*x**2, x*(c + x**2*(a + b)))
-    >>> poly.applylhs(factor)
-    Equation(x*(a*x + b + c*x), a*x**3 + b*x**3 + c*x)
-    >>> poly.applylhs(collect,x)
-    Equation(b*x + x**2*(a + c), a*x**3 + b*x**3 + c*x)
-
-    ``.apply...`` also works with user defined python functions:
-
-    >>> def add_square(eqn):
-    ...     return eqn+eqn**2
-    ...
-    >>> t.apply(add_square)
-    Equation(a**2 + a, b**2/c**2 + b/c)
-    >>> t.applyrhs(add_square)
-    Equation(a, b**2/c**2 + b/c)
-    >>> t.apply(add_square, side = 'rhs')
-    Equation(a, b**2/c**2 + b/c)
-    >>> t.applylhs(add_square)
-    Equation(a**2 + a, b/c)
-    >>> add_square(t)
-    Equation(a**2 + a, b**2/c**2 + b/c)
+    >>> eq3 = Eqn(2 * b + 2 * c, d - b)
+    >>> eq3
+    Equation(2*b + 2*c, -b + d)
+    >>> eq3.applylhs(collect_const, 2)
+    Equation(2*(b + c), -b + d)
 
     In addition to ``.apply...`` there is also the less general ``.do``,
     ``.dolhs``, ``.dorhs``, which only works for operations defined on the
     ``Expr`` class (e.g.``.collect(), .factor(), .expand()``, etc...):
 
+    >>> poly = Eqn(a*x**2 + b*x + c*x**2, a*x**3 + b*x**3 + c*x)
     >>> poly.dolhs.collect(x)
     Equation(b*x + x**2*(a + c), a*x**3 + b*x**3 + c*x)
     >>> poly.dorhs.collect(x)
@@ -143,81 +167,61 @@ class Equation(Basic, EvalfMixin):
     >>> poly.dorhs.factor()
     Equation(a*x**2 + b*x + c*x**2, x*(a*x**2 + b*x**2 + c))
 
-    ``poly.do.exp()`` or other sympy math functions will raise an error.
-
-    Rearranging an equation (simple example made complicated as illustration):
+    Substitutions and numerical evaluation:
 
     >>> p, V, n, R, T = var('p V n R T')
-    >>> eq1=Eqn(p*V,n*R*T)
-    >>> eq1
-    Equation(V*p, R*T*n)
-    >>> eq2 =eq1/V
-    >>> eq2
-    Equation(p, R*T*n/V)
-    >>> eq3 = eq2/R/T
-    >>> eq3
-    Equation(p/(R*T), n/V)
-    >>> eq4 = eq3*R/p
-    >>> eq4
-    Equation(1/T, R*n/(V*p))
-    >>> 1/eq4
-    Equation(T, V*p/(R*n))
-    >>> eq5 = 1/eq4 - T
-    >>> eq5
-    Equation(0, -T + V*p/(R*n))
-
-    Substitution (#'s and units):
-
     >>> L, atm, mol, K = var('L atm mol K', positive=True, real=True) # units
-    >>> eq2.subs({R:0.08206*L*atm/mol/K,T:273*K,n:1.00*mol,V:24.0*L})
+    >>> ideal_gas_law = Eqn(p * V, n * R * T)
+    >>> pressure = ideal_gas_law / V
+    >>> pressure.subs({R:0.08206*L*atm/mol/K,T:273*K,n:1.00*mol,V:24.0*L})
     Equation(p, 0.9334325*atm)
-    >>> eq2.subs({R:0.08206*L*atm/mol/K,T:273*K,n:1.00*mol,V:24.0*L}).evalf(4)
-    Equation(p, 0.9334*atm)
+
+    Evaluate up to n-digits:
+
+    >>> pressure.evalf(subs={R:0.08206*L*atm/mol/K,T:273*K,n:1.00*mol,V:24.0*L}, n=2)
+    Equation(p, 0.93*atm)
 
     Substituting an equation into another equation:
 
-    >>> P, P1, P2, A1, A2, E1, E2 = var("P, P1, P2, A1, A2, E1, E2")
-    >>> eq1 = Eqn(P, P1 + P2)
-    >>> eq2 = Eqn(P1 / (A1 * E1), P2 / (A2 * E2))
-    >>> P1_val = (eq1 - P2).swap
-    >>> P1_val
-    Equation(P1, P - P2)
-    >>> eq2 = eq2.subs(P1_val)
-    >>> eq2
-    Equation((P - P2)/(A1*E1), P2/(A2*E2))
-
-    Combining equations (Math with equations: lhs with lhs and rhs with rhs)
-    >>> q = Eqn(a*c, b/c**2)
-    >>> q
-    Equation(a*c, b/c**2)
-    >>> t
-    Equation(a, b/c)
-    >>> q+t
-    Equation(a*c + a, b/c + b/c**2)
-    >>> q/t
-    Equation(c, 1/c)
-    >>> t**q
-    Equation(a**(a*c), (b/c)**(b/c**2))
+    >>> e3 = Eqn(a/b, c/d)
+    >>> e4 = Eqn(d, (a + b) / c)
+    >>> e3.subs(e4)
+    Equation(a/b, c**2/(a + b))
 
     Utility operations:
 
-    >>> t.reversed
+    >>> eq
+    Equation(a, b/c)
+    >>> eq.reversed  # or t.swap
     Equation(b/c, a)
-    >>> t.swap
-    Equation(b/c, a)
-    >>> t.lhs
+    >>> eq.lhs
     a
-    >>> t.rhs
+    >>> eq.rhs
     b/c
-    >>> t.as_Boolean()
+    >>> eq.as_Boolean()
     Eq(a, b/c)
 
-    `.check()` convenience method for `.as_Boolean().simplify()`:
+    ``.check()`` to verify if the lhs is equal to the rhs. It is a
+    convenience method for ``.as_Boolean().simplify()``:
 
     >>> Equation(pi*(I+2), pi*I+2*pi).check()
     True
     >>> Eqn(a,a+1).check()
     False
+
+    Convert an Equation to an expression of the form ``lhs - rhs``:
+
+    >>> eq.to_expr()
+    a - b/c
+
+    Cross multiply members of an equation:
+
+    >>> e5 = Eqn(a/b, c/d)
+    >>> e5.cm()
+    Equation(a*d, b*c)
+    >>> e6 = Eqn(a/(b+c), 1)
+    >>> e6.cm()
+    Equation(a, b + c)
 
     Differentiation is applied to both sides:
 
@@ -226,7 +230,7 @@ class Equation(Basic, EvalfMixin):
     Equation(a*b, b**2/c**2)
     >>> diff(q,b)
     Equation(a, 2*b/c**2)
-    >>> diff(q,c)
+    >>> q.diff(c)
     Equation(0, -2*b**2/c**3)
 
     Integration is applied to both sides:
@@ -242,13 +246,14 @@ class Equation(Basic, EvalfMixin):
     report issues at https://github.com/gutow/Algebra_with_Sympy/issues.
 
     >>> from algebra_with_sympy import solve
-    >>> tosolv = Eqn(a - b, c/a)
-    >>> solve(tosolv,a)
+    >>> eq = Eqn(a - b, c/a)
+    >>> solve(eq,a)
     [Equation(a, b/2 - sqrt(b**2 + 4*c)/2), Equation(a, b/2 + sqrt(b**2 + 4*c)/2)]
-    >>> solve(tosolv, b)
+    >>> solve(eq, b)
     [Equation(b, (a**2 - c)/a)]
-    >>> solve(tosolv, c)
+    >>> solve(eq, c)
     [Equation(c, a**2 - a*b)]
+
     """
 
     def __new__(cls, lhs, rhs, **kwargs):
