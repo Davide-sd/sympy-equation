@@ -855,7 +855,7 @@ try:
     from IPython import get_ipython
     ip = get_ipython()
 except ModuleNotFoundError:
-    ip = false
+    ip = False
 formatter = None
 if ip:
     # In an environment that can display typeset latex
