@@ -11,15 +11,15 @@ from sympy_equation.algebraic_equation import (
     Equation,
     solve,
     collect,
-    algwsym_config,
+    equation_config,
     __latex_override__,
     __command_line_printing__,
 )
 from sympy import sqrt, root, Heaviside
 import pytest
 import sys
-algwsym_config.show_label = True
-algwsym_config.solve_to_list = False
+equation_config.show_label = True
+equation_config.solve_to_list = False
 
 a, b, c, d = symbols("a, b, c, d")
 
@@ -136,8 +136,8 @@ def test_output_show_label(show_label, human_text, output_txt, output_latex, cap
     vars(gs)['tsteqn'] = tsteqn
     assert tsteqn._get_eqn_name() == 'tsteqn'
 
-    algwsym_config.show_label = show_label
-    algwsym_config.human_text = human_text
+    equation_config.show_label = show_label
+    equation_config.human_text = human_text
     __command_line_printing__(tsteqn)
     captured = capsys.readouterr()
     assert captured.out == output_txt
@@ -166,7 +166,7 @@ def test_outputs_custom_latex_printer():
 
 
 def test_outputs_solve(capsys):
-    algwsym_config.human_text = True
+    equation_config.human_text = True
 
     x, y = symbols('x y', real=True)
     eq1 = Eqn(abs(2*x + y),3)
@@ -290,7 +290,7 @@ def test_solve():
                                    Equation(y, -1)), FiniteSet(Equation(x, 1),
                                    Equation(y, 1)), FiniteSet(Equation(x, 3),
                                    Equation(y, -3)))
-    algwsym_config.solve_to_list = True
+    equation_config.solve_to_list = True
     assert solve([eq1,eq2], x, y) == [[Equation(x, -3), Equation(y, 3)],
                                       [Equation(x, -1), Equation(y, -1)],
                                       [Equation(x, 1), Equation(y, 1)],
@@ -300,11 +300,11 @@ def test_solve():
     Tp, Ts = symbols("T_p, T_s", real=True, positive=True)
     e1 = Eqn(Tp, pi / (wn*sqrt(1 - xi**2)))
     e2 = Eqn(Ts, 4 / (wn*xi))
-    algwsym_config.solve_to_list = False
+    equation_config.solve_to_list = False
     assert solve([e1, e2], [xi, wn]) == FiniteSet(
         Eqn(xi, 4*Tp/sqrt(16*Tp**2 + pi**2*Ts**2)),
         Eqn(wn, sqrt(16*Tp**2 + pi**2*Ts**2)/(Tp*Ts)))
-    algwsym_config.solve_to_list = True
+    equation_config.solve_to_list = True
     assert solve([e1, e2], [xi, wn]) == [
         Eqn(xi, 4*Tp/sqrt(16*Tp**2 + pi**2*Ts**2)),
         Eqn(wn, sqrt(16*Tp**2 + pi**2*Ts**2)/(Tp*Ts))

@@ -2,7 +2,7 @@
 
 from sympy_equation.preparser import integers_as_exact
 from sympy_equation.algebraic_equation import set_integers_as_exact, \
-    unset_integers_as_exact, algwsym_config
+    unset_integers_as_exact, equation_config
 from IPython import get_ipython
 from pytest import raises
 
@@ -17,11 +17,11 @@ if not(get_ipython()):
 
 
 # Set up the global config object
-get_ipython().user_ns['algwsym_config'] = algwsym_config
+get_ipython().user_ns['equation_config'] = equation_config
 def test_set_integers_as_exact():
     set_integers_as_exact()
     assert integers_as_exact in get_ipython().input_transformers_post
-    assert algwsym_config.integers_as_exact == True
+    assert equation_config.integers_as_exact == True
 
 
 def test_integers_as_exact():
@@ -38,5 +38,5 @@ def test_integers_as_exact():
 
 def test_unset_integers_as_exact():
     unset_integers_as_exact()
-    assert algwsym_config.integers_as_exact == False
+    assert equation_config.integers_as_exact == False
     assert integers_as_exact not in get_ipython().input_transformers_post

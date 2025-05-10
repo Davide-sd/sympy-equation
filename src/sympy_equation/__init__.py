@@ -1,5 +1,5 @@
 from sympy_equation.algebraic_equation import (
-    algwsym_config,
+    equation_config,
     Equation,
     Eqn,
     solve,
@@ -7,7 +7,7 @@ from sympy_equation.algebraic_equation import (
 )
 
 __all__ = [
-    "algwsym_config",
+    "equation_config",
     "Equation",
     "Eqn",
     "solve",

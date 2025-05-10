@@ -715,7 +715,7 @@ class Equation(Basic, EvalfMixin):
 
 Eqn = Equation
 
-class _algwsym_config(param.Parameterized):
+class _equation_config(param.Parameterized):
 
     show_label = param.Boolean(False, doc="""
         If `True` a label with the name of the equation in the python
@@ -780,11 +780,11 @@ class _algwsym_config(param.Parameterized):
             unset_integers_as_exact()
 
 
-algwsym_config = _algwsym_config()
+equation_config = _equation_config()
 
 
 def __latex_override__(expr, *arg):
-    algwsym_config = False
+    equation_config = False
     ip = False
     try:
         from IPython import get_ipython
@@ -802,13 +802,13 @@ def __latex_override__(expr, *arg):
     latex_as_equations = False
     latex_printer = latex
     if ip:
-        algwsym_config = get_ipython().user_ns.get("algwsym_config", False)
+        equation_config = get_ipython().user_ns.get("equation_config", False)
     else:
-        algwsym_config = globals()['algwsym_config']
-    if algwsym_config:
-        show_label = algwsym_config.show_label
-        latex_as_equations = algwsym_config.latex_as_equations
-        latex_printer = algwsym_config.latex_printer
+        equation_config = globals()['equation_config']
+    if equation_config:
+        show_label = equation_config.show_label
+        latex_as_equations = equation_config.latex_as_equations
+        latex_printer = equation_config.latex_printer
     if latex_as_equations:
         return r'\begin{equation}'+latex_printer(expr)+r'\end{equation}'
     else:
@@ -817,7 +817,7 @@ def __latex_override__(expr, *arg):
         if isinstance(expr, Equation):
             namestr = expr._get_eqn_name()
 
-        if namestr != '' and algwsym_config and show_label:
+        if namestr != '' and equation_config and show_label:
             tempstr += r'$'+latex_printer(expr)
             # work around for colab's inconsistent handling of mixed latex and
             # plain strings.
@@ -834,8 +834,8 @@ def __latex_override__(expr, *arg):
 def __command_line_printing__(expr, *arg):
     # print('Entering __command_line_printing__')
     human_text = True
-    if algwsym_config:
-        human_text = algwsym_config.human_text
+    if equation_config:
+        human_text = equation_config.human_text
     tempstr = ''
     if not human_text:
         return print(tempstr + repr(expr))
@@ -844,7 +844,7 @@ def __command_line_printing__(expr, *arg):
         namestr = ''
         if isinstance(expr, Equation):
             namestr = expr._get_eqn_name()
-        if namestr != '' and algwsym_config.show_label:
+        if namestr != '' and equation_config.show_label:
             labelstr += '          (' + namestr + ')'
         return print(tempstr + str(expr) + labelstr)
 
@@ -886,7 +886,7 @@ def set_integers_as_exact():
     """This operation uses `sympy.interactive.session.int_to_Integer`, which
     causes any number input without a decimal to be interpreted as a sympy
     integer, to pre-parse input cells. It also sets the flag
-    `algwsym_config.integers_as_exact = True` This is the default
+    `equation_config.integers_as_exact = True` This is the default
     mode of sympy_equation. To turn this off call
     `unset_integers_as_exact()`.
     """
@@ -899,11 +899,11 @@ def set_integers_as_exact():
     if ip:
         if get_ipython():
             get_ipython().input_transformers_post.append(integers_as_exact)
-            algwsym_config = get_ipython().user_ns.get("algwsym_config", False)
-            if algwsym_config:
-                algwsym_config.integers_as_exact = True
+            equation_config = get_ipython().user_ns.get("equation_config", False)
+            if equation_config:
+                equation_config.integers_as_exact = True
             else:
-                raise ValueError("The algwsym_config object does not exist.")
+                raise ValueError("The equation_config object does not exist.")
     return
 
 
@@ -912,11 +912,11 @@ def unset_integers_as_exact():
     decimals being interpreted as sympy integers. Numbers input without a
     decimal may be interpreted as floating point if they are part of an
     expression that undergoes python evaluation (e.g. 2/3 -> 0.6666...). It
-    also sets the flag `algwsym_config.integers_as_exact = False`.
+    also sets the flag `equation_config.integers_as_exact = False`.
     Call `set_integers_as_exact()` to avoid this conversion of rational
     fractions and related expressions to floating point. Algebra_with_sympy
     starts with `set_integers_as_exact()` enabled (
-    `algwsym_config.integers_as_exact = True`).
+    `equation_config.integers_as_exact = True`).
     """
     ip = False
     try:
@@ -932,11 +932,11 @@ def unset_integers_as_exact():
             for k in pre:
                 if "integers_as_exact" in k.__name__:
                     pre.remove(k)
-            algwsym_config = get_ipython().user_ns.get("algwsym_config", False)
-            if algwsym_config:
-                algwsym_config.integers_as_exact = False
+            equation_config = get_ipython().user_ns.get("equation_config", False)
+            if equation_config:
+                equation_config.integers_as_exact = False
             else:
-                raise ValueError("The algwsym_config object does not exist.")
+                raise ValueError("The equation_config object does not exist.")
 
     return
 
@@ -962,14 +962,14 @@ def solve(f, *symbols, **flags):
     equation or set of equations.
 
     To get a Python `list` of solutions (pre-0.11.0 behavior) rather than a
-    `FiniteSet` issue the command `algwsym_config.solve_to_list = True`.
+    `FiniteSet` issue the command `equation_config.solve_to_list = True`.
     This also prevents pretty-printing in IPython and Jupyter.
 
     Examples
     --------
-    >>> from sympy_equation import Equation, solve, algwsym_config
-    >>> algwsym_config.solve_to_list = False
-    >>> algwsym_config.human_text = True
+    >>> from sympy_equation import Equation, solve, equation_config
+    >>> equation_config.solve_to_list = False
+    >>> equation_config.human_text = True
     >>> a, b, c, x, y = symbols('a b c x y', real = True)
     >>> import sys
     >>> sys.displayhook = __command_line_printing__ # set by default on normal initialization.
@@ -982,15 +982,15 @@ def solve(f, *symbols, **flags):
     {{x = -3, y = 3}, {x = -1, y = -1}, {x = 1, y = 1}, {x = 3, y = -3}}
 
     To get raw output turn off by setting
-    >>> algwsym_config.human_text=False
+    >>> equation_config.human_text=False
     >>> B
     FiniteSet(FiniteSet(Equation(x, -3), Equation(y, 3)), FiniteSet(Equation(x, -1), Equation(y, -1)), FiniteSet(Equation(x, 1), Equation(y, 1)), FiniteSet(Equation(x, 3), Equation(y, -3)))
 
     Pre-0.11.0 behavior where a python list of solutions is returned
-    >>> algwsym_config.solve_to_list = True
+    >>> equation_config.solve_to_list = True
     >>> solve((eq1,eq2))
     [[Equation(x, -3), Equation(y, 3)], [Equation(x, -1), Equation(y, -1)], [Equation(x, 1), Equation(y, 1)], [Equation(x, 3), Equation(y, -3)]]
-    >>> algwsym_config.solve_to_list = False # reset to default
+    >>> equation_config.solve_to_list = False # reset to default
 
     """
     from sympy.solvers.solvers import solve
@@ -1033,7 +1033,7 @@ def solve(f, *symbols, **flags):
                     val = k[key]
                     tempeqn = Eqn(key, val)
                     solnset.append(tempeqn)
-                if not algwsym_config.solve_to_list:
+                if not equation_config.solve_to_list:
                     solnset = FiniteSet(*solnset)
                 else:
                     if len(solnset) == len(symbols):
@@ -1042,7 +1042,7 @@ def solve(f, *symbols, **flags):
                 solns.append(solnset)
     else:
         solns = result
-    if algwsym_config.solve_to_list:
+    if equation_config.solve_to_list:
         if len(solns) == 1 and hasattr(solns[0], "__iter__"):
             # no need to wrap a list of a single element inside another list
             return solns[0]
@@ -1097,15 +1097,15 @@ def solveset(f, symbols, domain=sympy.Complexes):
     #                 val = k[key]
     #                 tempeqn = Eqn(key, val)
     #                 solnset.append(tempeqn)
-    #                 if algwsym_config.show_solve_output:
+    #                 if equation_config.show_solve_output:
     #                     displayset.append(tempeqn)
-    #             if algwsym_config.show_solve_output:
+    #             if equation_config.show_solve_output:
     #                 displayset.append('-----')
     #             solns.append(solnset)
-    #             if algwsym_config.show_solve_output:
+    #             if equation_config.show_solve_output:
     #                 for k in displayset:
     #                     displaysolns.append(k)
-    #         if algwsym_config.show_solve_output:
+    #         if equation_config.show_solve_output:
     #             display(*displaysolns)
     # else:
     solns = result

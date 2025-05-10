@@ -75,8 +75,8 @@ def integers_as_exact(lines):
 
        .. code: python
 
-          from sympy_equation import algwsym_config
-          algwsym_config.integers_as_exact = True
+          from sympy_equation import equation_config
+          equation_config.integers_as_exact = True
 
     2. This option does not work in plain vanilla Python sessions. You
        must be running in an IPython environment (Jupyter, Notebook, Colab,
