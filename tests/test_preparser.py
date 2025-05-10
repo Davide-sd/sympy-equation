@@ -1,6 +1,6 @@
 #!ipython
-from algebra_with_sympy.preparser import (
-    algebra_with_sympy_preparser as parser,
+from sympy_equation.preparser import (
+    sympy_equation_preparser as parser,
     integers_as_exact,
 )
 from IPython import get_ipython

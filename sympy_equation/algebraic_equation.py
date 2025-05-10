@@ -11,7 +11,7 @@ from sympy.core.sympify import _sympify
 from sympy.simplify.radsimp import collect
 # NOTE: by executing the following import, the module will automatically
 # load the preparser that allows the syntax my_eq =@ lhs = rhs.
-from algebra_with_sympy.preparser import integers_as_exact
+from sympy_equation.preparser import integers_as_exact
 
 
 
@@ -72,7 +72,7 @@ class Equation(Basic, EvalfMixin):
     ========
 
     >>> from sympy import *
-    >>> from algebra_with_sympy import Eqn, Equation
+    >>> from sympy_equation import Eqn, Equation
     >>> a, b, c, d, e, x = symbols('a, b, c, d, e, x')
 
     Mathematical operations between an equation and a scalar value:
@@ -245,7 +245,7 @@ class Equation(Basic, EvalfMixin):
     Automatic solutions using solvers. THIS IS EXPERIMENTAL. Please
     report issues at https://github.com/gutow/Algebra_with_Sympy/issues.
 
-    >>> from algebra_with_sympy import solve
+    >>> from sympy_equation import solve
     >>> eq = Eqn(a - b, c/a)
     >>> solve(eq,a)
     [Equation(a, b/2 - sqrt(b**2 + 4*c)/2), Equation(a, b/2 + sqrt(b**2 + 4*c)/2)]
@@ -432,7 +432,7 @@ class Equation(Basic, EvalfMixin):
         ========
         >>> from sympy import Add
         >>> from sympy.abc import b, x
-        >>> from algebra_with_sympy import Equation
+        >>> from sympy_equation import Equation
         >>> eq = Equation(x + b, x - b)
         >>> eq.rewrite(Add)
         Equation(2*b, 0)
@@ -493,7 +493,7 @@ class Equation(Basic, EvalfMixin):
         ========
 
         >>> from sympy.abc import a, b, c, x
-        >>> from algebra_with_sympy import Equation
+        >>> from sympy_equation import Equation
         >>> eq = Equation(x + a, b * c)
 
         Substitute a single value:
@@ -887,7 +887,7 @@ def set_integers_as_exact():
     causes any number input without a decimal to be interpreted as a sympy
     integer, to pre-parse input cells. It also sets the flag
     `algwsym_config.integers_as_exact = True` This is the default
-    mode of algebra_with_sympy. To turn this off call
+    mode of sympy_equation. To turn this off call
     `unset_integers_as_exact()`.
     """
     ip = False
@@ -967,7 +967,7 @@ def solve(f, *symbols, **flags):
 
     Examples
     --------
-    >>> from algebra_with_sympy import Equation, solve, algwsym_config
+    >>> from sympy_equation import Equation, solve, algwsym_config
     >>> algwsym_config.solve_to_list = False
     >>> algwsym_config.human_text = True
     >>> a, b, c, x, y = symbols('a b c x y', real = True)

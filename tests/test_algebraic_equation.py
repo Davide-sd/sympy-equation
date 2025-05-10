@@ -6,7 +6,7 @@ from sympy import (
 )
 from sympy.core.function import AppliedUndef
 from sympy.printing.latex import LatexPrinter
-from algebra_with_sympy.algebraic_equation import (
+from sympy_equation.algebraic_equation import (
     Eqn,
     Equation,
     solve,

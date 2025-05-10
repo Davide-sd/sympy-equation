@@ -1,4 +1,4 @@
-def algebra_with_sympy_preparser(lines):
+def sympy_equation_preparser(lines):
     """
     In IPython compatible environments (Jupyter, IPython, etc...) this supports
     a special compact input method for equations.
@@ -75,7 +75,7 @@ def integers_as_exact(lines):
 
        .. code: python
 
-          from algebra_with_sympy import algwsym_config
+          from sympy_equation import algwsym_config
           algwsym_config.integers_as_exact = True
 
     2. This option does not work in plain vanilla Python sessions. You
@@ -97,7 +97,7 @@ try:
     if get_ipython():
         if hasattr(get_ipython(),'input_transformers_cleanup'):
             get_ipython().input_transformers_post.\
-                append(algebra_with_sympy_preparser)
+                append(sympy_equation_preparser)
         else:
             import warnings
             warnings.warn(

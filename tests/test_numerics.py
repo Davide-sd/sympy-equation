@@ -1,7 +1,7 @@
 #!ipython
 
-from algebra_with_sympy.preparser import integers_as_exact
-from algebra_with_sympy.algebraic_equation import set_integers_as_exact, \
+from sympy_equation.preparser import integers_as_exact
+from sympy_equation.algebraic_equation import set_integers_as_exact, \
     unset_integers_as_exact, algwsym_config
 from IPython import get_ipython
 from pytest import raises
