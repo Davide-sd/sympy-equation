@@ -15,6 +15,7 @@ from sympy_equation.algebraic_equation import (
     __latex_override__,
     __command_line_printing__,
 )
+import sympy_equation as se
 from sympy import sqrt, root, Heaviside
 import pytest
 import sys
@@ -427,3 +428,7 @@ def test_as_expr(eqn, expr):
 ])
 def test_nsimplify(eqn, kwargs, res):
     assert eqn.nsimplify(**kwargs) == res
+
+
+def test_version():
+    assert hasattr(se, "__version__")
