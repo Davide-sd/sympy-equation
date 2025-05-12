@@ -1,0 +1,53 @@
+[project]
+name = "sympy_equation"
+version = "1.1.2"
+description = "Equations that can be algebraicly manipulated."
+authors = [
+    {name = "Davide Sandonà", email = "sandona.davide@gmail.com"},
+    {name = "Jonathan Gutow", email = "gutow@uwosh.edu"},
+]
+dependencies = [
+    "param",
+    "sympy",
+    "python-flint>=0.6.0",
+]
+requires-python = ">=3.9"
+readme = "README.md"
+license = {text = "GPL-3.0+"}
+keywords = [
+    "symbolic algebra",
+    "computer algebra",
+    "CAS",
+    "sympy",
+    "equation",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://gutow.github.io/Algebra_with_Sympy/"
+
+[project.optional-dependencies]
+interactive = [
+    "ipython>=8.18.1",
+    "jupyterlab>=4.4.2",
+]
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[dependency-groups]
+test = [
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+]
