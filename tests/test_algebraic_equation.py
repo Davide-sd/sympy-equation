@@ -3,7 +3,8 @@ from sympy import (
     symbols, integrate, simplify, expand, factor, Integral, Add,
     diff, FiniteSet, Function, Matrix, S, Eq, Equality,
     sin, cos, log, exp, latex, Symbol, I, pi, Float, Derivative, Rational,
-    oo, Piecewise, gamma, sign, re, sqrt, root, Heaviside
+    oo, Piecewise, gamma, sign, re, sqrt, root, Heaviside,
+    solve as sympy_solve
 )
 from sympy.core.function import AppliedUndef
 from sympy.printing.latex import LatexPrinter
@@ -240,30 +241,53 @@ def test_helper_functions():
     assert Eqn(a,b/c).apply(sqrt) == Equation(sqrt(a), sqrt(b/c))
 
 
-def test_solve():
+def test_solve_1():
     a, b, c, x = symbols('a b c x')
-    computed_sol = solve(Equation(a * x**2, b * x + c), x)
+    eq = Equation(a * x**2, b * x + c)
+    computed_sol = solve(eq, x)
     sol1 = Equation(x, ((b - sqrt(4*a*c + b**2))/(2*a)).expand())
     sol2 = Equation(x, ((b + sqrt(4*a*c + b**2))/(2*a)).expand())
     assert len(computed_sol) == 2
     assert sol1 in computed_sol
     assert sol2 in computed_sol
 
-    result = solve(a * x**2 - b * x - c, x)
-    assert isinstance(result, FiniteSet) and (len(result) == 2)
-    assert {x: sol1.rhs} in result
-    assert {x: sol2.rhs} in result
+    # verify sympy_equation.solve is a wrapper of sympy.solve
+    res1a = solve(eq.to_expr(), x)
+    assert isinstance(res1a, list) and (len(res1a) == 2)
+    assert sol1.rhs.simplify() in res1a
+    assert sol2.rhs.simplify() in res1a
+
+    res1b = sympy_solve(eq.to_expr(), x)
+    assert res1a == res1b
+
+    res2a = solve([eq.to_expr()], x)
+    assert isinstance(res2a, list) and (len(res2a) == 2)
+    assert all(isinstance(t, tuple) for t in res2a)
+    assert all(len(t) == 1 for t in res2a)
+    res2a = [res2a[0][0], res2a[1][0]]
+    assert sol1.rhs in res2a
+    assert sol2.rhs in res2a
+
+    res2b = sympy_solve([eq.to_expr()], x)
+    assert isinstance(res2b, list) and (len(res2b) == 2)
+    assert all(isinstance(t, tuple) for t in res2b)
+    assert all(len(t) == 1 for t in res2b)
+    res2b = [res2b[0][0], res2b[1][0]]
+    assert res2a == res2b
 
 
+def test_solve_2():
     x, y = symbols('x y', real = True)
     eq1 = Eqn(abs(2*x + y), 3)
     eq2 = Eqn(abs(x + 2*y), 3)
+
     assert solve([eq1,eq2], x, y) == FiniteSet(
         FiniteSet(Equation(x, -3), Equation(y, 3)),
         FiniteSet(Equation(x, -1), Equation(y, -1)),
         FiniteSet(Equation(x, 1), Equation(y, 1)),
         FiniteSet(Equation(x, 3), Equation(y, -3))
     )
+
     equation_config.solve_to_list = True
     assert solve([eq1,eq2], x, y) == [
         [Equation(x, -3), Equation(y, 3)],
@@ -272,19 +296,33 @@ def test_solve():
         [Equation(x, 3), Equation(y, -3)]
     ]
 
+    # verify sympy_equation.solve is a wrapper of sympy.solve
+    exprs = [e.as_expr() for e in [eq1, eq2]]
+    res1 = solve(exprs, x, y, dict=False)
+    res2 = solve(exprs, x, y, dict=True)
+    res3 = sympy_solve(exprs, x, y, dict=False)
+    res4 = sympy_solve(exprs, x, y, dict=True)
+    assert res1 == res3
+    assert res2 == res4
+
+
+def test_solve_3():
     xi, wn = symbols("xi omega_n", real=True, positive=True)
     Tp, Ts = symbols("T_p, T_s", real=True, positive=True)
     e1 = Eqn(Tp, pi / (wn*sqrt(1 - xi**2)))
     e2 = Eqn(Ts, 4 / (wn*xi))
+
     equation_config.solve_to_list = False
     assert solve([e1, e2], [xi, wn]) == FiniteSet(
         Eqn(xi, 4*Tp/sqrt(16*Tp**2 + pi**2*Ts**2)),
         Eqn(wn, sqrt(16*Tp**2 + pi**2*Ts**2)/(Tp*Ts)))
+
     equation_config.solve_to_list = True
     assert solve([e1, e2], [xi, wn]) == [
         Eqn(xi, 4*Tp/sqrt(16*Tp**2 + pi**2*Ts**2)),
         Eqn(wn, sqrt(16*Tp**2 + pi**2*Ts**2)/(Tp*Ts))
     ]
+
     # order of symbols are swapped -> results are swapped as well
     assert solve([e1, e2], [wn, xi]) == [
         Eqn(wn, sqrt(16*Tp**2 + pi**2*Ts**2)/(Tp*Ts)),

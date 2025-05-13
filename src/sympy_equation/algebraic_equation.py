@@ -824,98 +824,108 @@ Eqn = Equation
 
 def solve(f, *symbols, **flags):
     """
-    Override of sympy `solve()`.
+    Wrapper of ``sympy.solve()``.
 
-    If passed an expression and variable(s) to solve for it behaves
-    almost the same as normal solve with `dict = True`, except that solutions
-    are wrapped in a FiniteSet() to guarantee that the output will be pretty
-    printed in Jupyter like environments.
+    If passed an expression (or a list of expressions) and variable(s) to
+    solve for it behaves exactly like ``sympy.solve``.
 
-    If passed an equation or equations it returns solutions as a
-    `FiniteSet()` of solutions, where each solution is represented by an
-    equation or set of equations.
+    If passed an equation (or equations) it returns solutions as equations.
+    If multiple solutions are present, they will be contained either in a list
+    or in a FiniteSet, depending on the value of
+    ``equation_config.solve_to_list``.
 
-    To get a Python `list` of solutions (pre-0.11.0 behavior) rather than a
-    `FiniteSet` issue the command `equation_config.solve_to_list = True`.
-    This also prevents pretty-printing in IPython and Jupyter.
+    See ``sympy.solve`` for the full documentation.
 
     Examples
     --------
-    >>> from sympy_equation import Equation, solve, equation_config
+
+    >>> from sympy_equation import Eqn, solve, equation_config
+    >>> from sympy import symbols
+    >>> a, b, c, x, y = symbols('a b c x y', real=True)
+
+    When an ``Equation`` is provided as an argument of ``solve``, the output
+    will contain objects of type ``Equation``:
+
+    >>> eq = Eqn(a * x**2, -b * x - c)
+    >>> res = solve(eq, x)
+    >>> res
+    [Equation(x, -b/(2*a) - sqrt(-4*a*c + b**2)/(2*a)), Equation(x, -b/(2*a) + sqrt(-4*a*c + b**2)/(2*a))]
+
+    Request the output to be a FiniteSet:
+
     >>> equation_config.solve_to_list = False
-    >>> equation_config.human_text = True
-    >>> a, b, c, x, y = symbols('a b c x y', real = True)
-    >>> import sys
-    >>> sys.displayhook = __command_line_printing__ # set by default on normal initialization.
-    >>> eq1 = Eqn(abs(2*x+y),3)
-    >>> eq2 = Eqn(abs(x + 2*y),3)
-    >>> B = solve((eq1,eq2))
+    >>> res = solve(eq, x)
+    >>> res
+    FiniteSet(Equation(x, -b/(2*a) - sqrt(-4*a*c + b**2)/(2*a)), Equation(x, -b/(2*a) + sqrt(-4*a*c + b**2)/(2*a)))
 
-    Default human readable output on command line
-    >>> B
-    {{x = -3, y = 3}, {x = -1, y = -1}, {x = 1, y = 1}, {x = 3, y = -3}}
+    Solve multiple equations:
 
-    To get raw output turn off by setting
-    >>> equation_config.human_text=False
-    >>> B
-    FiniteSet(FiniteSet(Equation(x, -3), Equation(y, 3)), FiniteSet(Equation(x, -1), Equation(y, -1)), FiniteSet(Equation(x, 1), Equation(y, 1)), FiniteSet(Equation(x, 3), Equation(y, -3)))
-
-    Pre-0.11.0 behavior where a python list of solutions is returned
     >>> equation_config.solve_to_list = True
-    >>> solve((eq1,eq2))
+    >>> eq1 = Eqn(abs(2*x+y), 3)
+    >>> eq2 = Eqn(abs(x + 2*y), 3)
+    >>> res = solve((eq1, eq2), x, y)
+    >>> res
     [[Equation(x, -3), Equation(y, 3)], [Equation(x, -1), Equation(y, -1)], [Equation(x, 1), Equation(y, 1)], [Equation(x, 3), Equation(y, -3)]]
-    >>> equation_config.solve_to_list = False # reset to default
+
+    Convert the equations to expressions. In this case, ``solve`` is just a
+    wrapper to ``sympy.solve``:
+
+    >>> expr = [e.as_expr() for e in [eq1, eq2]]
+    >>> res = solve(expr, x, y, dict=False)
+    >>> res
+    [(-3, 3), (-1, -1), (1, 1), (3, -3)]
+    >>> res = solve(expr, x, y, dict=True)
+    >>> res
+    [{x: -3, y: 3}, {x: -1, y: -1}, {x: 1, y: 1}, {x: 3, y: -3}]
 
     """
     from sympy.solvers.solvers import solve
     from sympy.sets.sets import FiniteSet
-    newf =[]
+
+    is_f_iter = hasattr(f, '__iter__')
+    if not is_f_iter:
+        f = [f]
+
+    newf = [e.as_expr() if isinstance(e, Equation) else e for e in f]
+    contains_eqn = any(isinstance(e, Equation) for e in f)
+
+    if not contains_eqn:
+        # execute solve without any pre-post processing in order not to alter
+        # the expected behaviour by the users
+        f = f if is_f_iter else f[0]
+        return solve(f, *symbols, **flags)
+
     solns = []
-    displaysolns = []
-    contains_eqn = False
-    if hasattr(f,'__iter__'):
-        for k in f:
-            if isinstance(k, Equation):
-                newf.append(k.lhs-k.rhs)
-                contains_eqn = True
-            else:
-                newf.append(k)
-    else:
-        if isinstance(f, Equation):
-            newf.append(f.lhs - f.rhs)
-            contains_eqn = True
-        else:
-            newf.append(f)
     flags['dict'] = True
     result = solve(newf, *symbols, **flags)
+
     if len(symbols) == 1 and hasattr(symbols[0], "__iter__"):
         symbols = symbols[0]
-    if contains_eqn:
-        if len(result[0]) == 1:
-            for k in result:
-                for key in k.keys():
-                    val = k[key]
-                    tempeqn = Eqn(key, val)
-                    solns.append(tempeqn)
-            if len(solns) == len(symbols):
-                # sort according to the user-provided symbols
-                solns = sorted(solns, key=lambda x: symbols.index(x.lhs))
-        else:
-            for k in result:
-                solnset = []
-                for key in k.keys():
-                    val = k[key]
-                    tempeqn = Eqn(key, val)
-                    solnset.append(tempeqn)
-                if not equation_config.solve_to_list:
-                    solnset = FiniteSet(*solnset)
-                else:
-                    if len(solnset) == len(symbols):
-                        # sort according to the user-provided symbols
-                        solnset = sorted(solnset, key=lambda x: symbols.index(x.lhs))
-                solns.append(solnset)
+
+    if len(result[0]) == 1:
+        for k in result:
+            for key in k.keys():
+                val = k[key]
+                tempeqn = Eqn(key, val)
+                solns.append(tempeqn)
+        if len(solns) == len(symbols):
+            # sort according to the user-provided symbols
+            solns = sorted(solns, key=lambda x: symbols.index(x.lhs))
     else:
-        solns = result
+        for k in result:
+            solnset = []
+            for key in k.keys():
+                val = k[key]
+                tempeqn = Eqn(key, val)
+                solnset.append(tempeqn)
+            if not equation_config.solve_to_list:
+                solnset = FiniteSet(*solnset)
+            else:
+                if len(solnset) == len(symbols):
+                    # sort according to the user-provided symbols
+                    solnset = sorted(solnset, key=lambda x: symbols.index(x.lhs))
+            solns.append(solnset)
+
     if equation_config.solve_to_list:
         if len(solns) == 1 and hasattr(solns[0], "__iter__"):
             # no need to wrap a list of a single element inside another list
