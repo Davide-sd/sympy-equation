@@ -98,3 +98,8 @@ Check out the documentation to read more about these and other options.
   the behaviour of the module. Similarly, ``sympy_equation`` exposes the
   ``equation_config``. The available options are very similar, but their
   default values are often different.
+* ``algebra_with_sympy`` overwrites the default behaviour of SymPy's
+  ``solve()`` and ``solveset()`` in order for them to return sets of solutions.
+  This can be annoying if you are used to the SymPy's way of doing things.
+  Differently, ``sympy_equation`` doesn't change the behaviour of these
+  functions, rather it extends it in order to deal with the ``Equation`` class.

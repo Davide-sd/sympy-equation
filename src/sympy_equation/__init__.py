@@ -4,7 +4,6 @@ from sympy_equation.algebraic_equation import (
     Equation,
     Eqn,
     solve,
-    solveset,
 )
 
 
@@ -19,5 +18,4 @@ __all__ = [
     "Equation",
     "Eqn",
     "solve",
-    "solveset",
 ]

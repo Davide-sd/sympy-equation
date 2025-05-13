@@ -3,7 +3,7 @@ import param
 import sympy
 from  sympy import (
     Expr, Basic, Equality, Add, symbols, Equality,
-    solve, solveset, latex, Abs, Integral, fraction
+    latex, Abs, Integral, fraction
 )
 from sympy.core.add import _unevaluated_Add
 from sympy.core.evalf import EvalfMixin
@@ -734,15 +734,16 @@ class _equation_config(param.Parameterized):
         environment will be shown on the screen. Default to `False`.""")
 
     human_text = param.Boolean(False, doc="""
-        For text-based interactive environments, by entering the name of the
-        equation and executing that line of code it will show the equation in
-        textual format. If ``human_text=True`` the equation will be shown
-        as "lhs = rhs". If ``False``, it will be shown as
-        ``Equation(lhs, rhs)``.""")
+        For text-based interactive environments, if the last line of a cell
+        is the name of some equation, its execution will show the textual
+        representation of the equation in the output. If ``human_text=True``
+        the equation will be shown as "lhs = rhs". If ``False``, it will be
+        shown as ``Equation(lhs, rhs)``.""")
 
     solve_to_list = param.Boolean(True, doc="""
-        If ``True`` the results of a call to ``solve(...)`` will return a
-        Python ``list`` rather than a Sympy ``FiniteSet``.
+        The results of a call to  ``solve([eq1, eq2, ...], var1, var2, ...)``
+        will return a Python ``list`` rather than a Sympy ``FiniteSet`` if
+        ``solve_to_list = True``.
 
         Note: setting this `True` means that expressions within the
         returned solutions might not be pretty-printed in Jupyter and
@@ -753,7 +754,7 @@ class _equation_config(param.Parameterized):
         pretty-printing will be wrapped in the formal Latex for an
         equation. For example rather than:
         ```
-        $\\frac{a}{b}=c$
+        \\frac{a}{b}=c
         ```
         the output will be:
         ```
@@ -765,20 +766,21 @@ class _equation_config(param.Parameterized):
     integers_as_exact = param.Boolean(False, doc="""
         If running in an IPython/Jupyter environment, preparse the content
         of a code line in order to convert integer numbers to sympy's Integer.
-        This can be handy when writing expressions containing rational number:
-        by settings this to ``True`` for example, we can write 2/3 which will
+        This can be handy when writing expressions containing rational number.
+        For example, by settings this to ``True`` we can write 2/3 which will
         be automatically converted to Integer(2)/Integer(3) which than SymPy
-        would convert to Rational(2, 3). If ``False``, no preparsing would
-        be done, and Python would be evaluated 2/3 to 0.6666667, which will
-        then be converted by SymPy to a Float.
+        converts to Rational(2, 3). If ``False``, no preparsing  is done,
+        and Python evaluates 2/3 to 0.6666667, which will then be converted
+        by SymPy to a Float.
 
-        However, it is reccommended to set this options to ``True`` if we
-        are only using SymPy and symbolic operations, not when we are using
-        other numerical libraries, such as Numpy, because it will create hard
-        to debug situation. Consider this line of code: ``np.cos(np.pi / 4)``.
-        This will raise an error, because 4 is first converted to
-        sympy's Integer, then ``np.pi / 4`` becomes a symbolic expression
-        and ``np.cos`` is unable to evaluate it.""")
+        Note: it is reccommended to set this options to ``True`` only when
+        executing purely symbolic computations, not when using other numerical
+        libraries, such as Numpy, because it will create hard to debug
+        situations. Consider executing this: ``np.cos(np.pi / 4)``.
+        If ``integers_as_exact = True``, this will raise an error because
+        4 is first replaced with sympy's Integer(4), then
+        ``np.pi / Integer(4)`` becomes a symbolic expression and ``np.cos``
+        is unable to evaluate it.""")
 
     @param.depends("integers_as_exact", watch=True)
     def _update_integers_as_exact(self):
@@ -938,62 +940,6 @@ def solve(f, *symbols, **flags):
                 if isinstance(k, FiniteSet):
                     return k
         return FiniteSet(*solns)
-
-
-def solveset(f, symbols, domain=sympy.Complexes):
-    """
-    Very experimental override of sympy solveset, which we hope will replace
-    solve. Much is not working. It is not clear how to input a system of
-    equations unless you directly select `linsolve`, etc...
-    """
-    from sympy.solvers import solveset as solve
-    newf = []
-    solns = []
-    displaysolns = []
-    contains_eqn = False
-    if hasattr(f, '__iter__'):
-        for k in f:
-            if isinstance(k, Equation):
-                newf.append(k.lhs - k.rhs)
-                contains_eqn = True
-            else:
-                newf.append(k)
-    else:
-        if isinstance(f, Equation):
-            newf.append(f.lhs - f.rhs)
-            contains_eqn = True
-        else:
-            newf.append(f)
-    result = solve(*newf, symbols, domain=domain)
-    # if contains_eqn:
-    #     if len(result[0]) == 1:
-    #         for k in result:
-    #             for key in k.keys():
-    #                 val = k[key]
-    #                 tempeqn = Eqn(key, val)
-    #                 solns.append(tempeqn)
-    #         display(*solns)
-    #     else:
-    #         for k in result:
-    #             solnset = []
-    #             displayset = []
-    #             for key in k.keys():
-    #                 val = k[key]
-    #                 tempeqn = Eqn(key, val)
-    #                 solnset.append(tempeqn)
-    #                 if equation_config.show_solve_output:
-    #                     displayset.append(tempeqn)
-    #             if equation_config.show_solve_output:
-    #                 displayset.append('-----')
-    #             solns.append(solnset)
-    #             if equation_config.show_solve_output:
-    #                 for k in displayset:
-    #                     displaysolns.append(k)
-    #         if equation_config.show_solve_output:
-    #             display(*displaysolns)
-    # else:
-    solns = result
-    return solns
 
 
 def _eq_to_eqn(self):
