@@ -1,8 +1,9 @@
+from IPython.lib.pretty import pretty
 from sympy import (
     symbols, integrate, simplify, expand, factor, Integral, Add,
     diff, FiniteSet, Function, Matrix, S, Eq, Equality,
     sin, cos, log, exp, latex, Symbol, I, pi, Float, Derivative, Rational,
-    oo, Piecewise, gamma, sign, re,
+    oo, Piecewise, gamma, sign, re, sqrt, root, Heaviside
 )
 from sympy.core.function import AppliedUndef
 from sympy.printing.latex import LatexPrinter
@@ -12,37 +13,16 @@ from sympy_equation.algebraic_equation import (
     solve,
     collect,
     equation_config,
-    __latex_override__,
-    __command_line_printing__,
 )
 import sympy_equation as se
-from sympy import sqrt, root, Heaviside
 import pytest
 import sys
+
+
 equation_config.show_label = True
 equation_config.solve_to_list = False
-
 a, b, c, d = symbols("a, b, c, d")
 
-
-#####
-# Testing that sympy functions work with Equations
-#####
-
-# Overridden elsewhere
-_extended_ = ('sqrt', 'cbrt', 'root')
-
-# Either not applicable to Equations or have not yet figured out a way
-# to systematically apply to an Equation.
-# TODO examine these more carefully (top priority: real_root, Ynm_c).
-_not_applicable_to_equations_ = ('Min', 'Max', 'Id', 'real_root',
-        'unbranched_argument', 'polarify', 'unpolarify',
-        'piecewise_fold', 'E1', 'Eijk', 'bspline_basis',
-        'bspline_basis_set', 'interpolating_spline', 'jn_zeros',
-        'jacobi_normalized', 'Ynm_c', 'piecewise_exclusive', 'Piecewise',
-        'motzkin', 'hyper','meijerg', 'chebyshevu_root', 'chebyshevt_root',
-        'betainc_regularized')
-_skip_ = _extended_ + _not_applicable_to_equations_
 
 class CustomLatexPrinter(LatexPrinter):
     """Print undefined applied functions without arguments"""
@@ -103,33 +83,15 @@ def test_binary_op():
     assert tsteqn._eval_power(a) == Equation(a**a, (b/c)**a)
 
 
-@pytest.mark.parametrize("show_label, human_text, output_txt, output_latex", [
-    (
-        True,
-        True,
-        'a = b/c          (tsteqn)\n',
-        '$a=\\frac{b}{c}\\,\\,\\,\\,\\,\\,\\,\\,\\,\\,$(tsteqn)'
-    ),
-    (
-        True,
-        False,
-        'Equation(a, b/c)\n',
-        '$a=\\frac{b}{c}\\,\\,\\,\\,\\,\\,\\,\\,\\,\\,$(tsteqn)'
-    ),
-    (
-        False,
-        True,
-        'a = b/c\n',
-        '$a=\\frac{b}{c}$'
-    ),
-    (
-        False,
-        False,
-        'Equation(a, b/c)\n',
-        '$a=\\frac{b}{c}$'
-    ),
+@pytest.mark.parametrize("show_label, human_text, output_txt", [
+    ( True, True, 'a = b/c          (tsteqn)' ),
+    ( True, False, 'Equation(a, b/c)' ),
+    ( False, True, 'a = b/c' ),
+    ( False, False, 'Equation(a, b/c)' ),
 ])
-def test_output_show_label(show_label, human_text, output_txt, output_latex, capsys):
+def test_output_pretty_print_show_label(show_label, human_text, output_txt):
+    # verify that the output of a textual-based ipython cell
+    # shows the correct results depending on the configuration values.
     a, b, c = symbols('a b c')
     tsteqn = Eqn(a, b / c)
 
@@ -139,31 +101,43 @@ def test_output_show_label(show_label, human_text, output_txt, output_latex, cap
 
     equation_config.show_label = show_label
     equation_config.human_text = human_text
-    __command_line_printing__(tsteqn)
-    captured = capsys.readouterr()
-    assert captured.out == output_txt
+    assert pretty(tsteqn) == output_txt
 
-    sys.displayhook = sys.__displayhook__
-    assert __latex_override__(tsteqn) == output_latex
+
+@pytest.mark.parametrize("show_label, output_latex", [
+    ( True, 'a = \\frac{b}{c}\\qquad (tsteqn)' ),
+    ( True, 'a = \\frac{b}{c}\\qquad (tsteqn)' ),
+    ( False, 'a = \\frac{b}{c}' ),
+    ( False, 'a = \\frac{b}{c}' ),
+])
+def test_output_latex_show_label(
+    show_label, output_latex, ipython_shell
+):
+    a, b, c = symbols('a b c')
+    tsteqn = Eqn(a, b / c)
+
+    import __main__ as gs
+    vars(gs)['tsteqn'] = tsteqn
+    assert tsteqn._get_eqn_name() == 'tsteqn'
+
+    equation_config.show_label = show_label
+    assert latex(tsteqn) == output_latex
+
+
+def test_output_custom_latex_printer():
+    f = Function("f")(a, b, c)
+    eq = Eqn(f, 2)
+    assert latex(eq) == "f{\\left(a,b,c \\right)} = 2"
+    # use custom printer
+    assert my_latex(eq) == "f = 2"
 
 
 def test_outputs(capsys):
     a, b, c = symbols('a b c')
     tsteqn = Eqn(a, b/c)
     assert tsteqn.__str__() == 'a = b/c'
-    assert latex(tsteqn) == 'a=\\frac{b}{c}'
     assert tsteqn.__repr__() == 'Equation(a, b/c)'
-    assert tsteqn.__repr__() == 'Equation(a, b/c)'
-    assert tsteqn.__str__() == 'a = b/c'
-    assert latex(tsteqn) == 'a=\\frac{b}{c}'
-
-
-def test_outputs_custom_latex_printer():
-    f = Function("f")(a, b, c)
-    eq = Eqn(f, 2)
-    assert latex(eq) == "f{\\left(a,b,c \\right)}=2"
-    # use custom printer
-    assert my_latex(eq) == "f=2"
+    assert latex(tsteqn) == 'a = \\frac{b}{c}'
 
 
 def test_outputs_solve(capsys):
@@ -173,22 +147,13 @@ def test_outputs_solve(capsys):
     eq1 = Eqn(abs(2*x + y),3)
     eq2 = Eqn(abs(x + 2*y),3)
     B = solve([eq1,eq2],x,y)
-    assert B.__repr__() == 'FiniteSet(FiniteSet(Equation(' \
-                                              'x, -3), ' \
-                                   'Equation(y, 3)), FiniteSet(Equation(x, ' \
-                                              '-1), ' \
-                                   'Equation(y, -1)), FiniteSet(Equation(x, ' \
-                                              '1), ' \
-                                   'Equation(y, 1)), FiniteSet(Equation(x, 3),' \
-                                   ' Equation(y, -3)))'
+    assert B.__repr__() == 'FiniteSet(FiniteSet(Equation(x, -3), ' \
+        'Equation(y, 3)), FiniteSet(Equation(x, -1), ' \
+        'Equation(y, -1)), FiniteSet(Equation(x, 1), ' \
+        'Equation(y, 1)), FiniteSet(Equation(x, 3),' \
+        ' Equation(y, -3)))'
     assert B.__str__() == '{{x = -3, y = 3}, {x = -1, y = -1}, ' \
                                    '{x = 1, y = 1}, {x = 3, y = -3}}'
-    __command_line_printing__(B)
-    captured = capsys.readouterr()
-    assert captured.out == \
-           '{{x = -3, y = 3}, {x = -1, y = -1}, ' \
-                                   '{x = 1, y = 1}, {x = 3, y = -3}}\n'
-
 
 def test_sympy_functions():
     a, b, c = symbols('a b c')
@@ -271,17 +236,18 @@ def test_helper_functions():
 
 def test_solve():
     a, b, c, x = symbols('a b c x')
-    assert Equation(x, ((b - sqrt(4*a*c + b**2))/(2*a)).expand()) in solve(
-        Equation(a*x**2,b*x+c),x)
-    assert Equation(x, ((b + sqrt(4*a*c + b**2))/(2*a)).expand()) in solve(
-        Equation(a*x**2,b*x+c),x)
-    assert len(solve(Equation(a*x**2,b*x+c), x)) == 2
-    result = solve(a*x**2-b*x-c,x)
-    solns = []
-    for k in result:
-        for key in k.keys():
-            solns.append(k[key])
-    assert ((b - sqrt(4*a*c + b**2))/(2*a)).expand() in solns
+    computed_sol = solve(Equation(a * x**2, b * x + c), x)
+    sol1 = Equation(x, ((b - sqrt(4*a*c + b**2))/(2*a)).expand())
+    sol2 = Equation(x, ((b + sqrt(4*a*c + b**2))/(2*a)).expand())
+    assert len(computed_sol) == 2
+    assert sol1 in computed_sol
+    assert sol2 in computed_sol
+
+    result = solve(a * x**2 - b * x - c, x)
+    assert isinstance(result, FiniteSet) and (len(result) == 2)
+    assert {x: sol1.rhs} in result
+    assert {x: sol2.rhs} in result
+
 
     x, y = symbols('x y', real = True)
     eq1 = Eqn(abs(2*x + y), 3)
@@ -398,6 +364,7 @@ def test_subs():
     sd = {x + a: a, a: x + a}
     assert eq.subs(sd) == Equation(1, b * c)
     assert eq.subs(sd, simultaneous=True) == Equation(a / (x + a), b * c)
+
 
 def test_issue_23():
     # This gave a key error

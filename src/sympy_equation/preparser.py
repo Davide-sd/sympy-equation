@@ -92,12 +92,25 @@ def integers_as_exact(lines):
     return int_to_Integer(string)
 
 
-try:
-    from IPython import get_ipython
-    if get_ipython():
-        if hasattr(get_ipython(),'input_transformers_cleanup'):
-            get_ipython().input_transformers_post.\
-                append(sympy_equation_preparser)
+def init_ipython_session(argv=[]):
+    """Construct new IPython session. """
+
+    try:
+        import IPython
+        shell = IPython.get_ipython()
+
+        if not shell:
+            from IPython.terminal import ipapp
+            app = ipapp.TerminalIPythonApp()
+
+            # don't draw IPython banner during initialization:
+            app.display_banner = False
+            app.initialize(argv)
+
+            shell = app.shell
+
+        if hasattr(shell, 'input_transformers_cleanup'):
+            shell.input_transformers_post.append(sympy_equation_preparser)
         else:
             import warnings
             warnings.warn(
@@ -107,5 +120,12 @@ try:
                 'outdated version of IPython.\nTo fix, update IPython ' \
                 'using "pip install -U IPython".'
             )
-except ModuleNotFoundError:
-    pass
+
+        return shell
+
+    except ModuleNotFoundError:
+        pass
+
+
+# NOTE: this is necessary in order to load the preparser
+init_ipython_session()

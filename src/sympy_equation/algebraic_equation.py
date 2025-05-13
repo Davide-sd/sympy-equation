@@ -648,25 +648,40 @@ class Equation(Basic, EvalfMixin):
             Integral(self.rhs, *args, **kwargs)
         )
 
-    #####
-    # Output helper functions
-    #####
     def __repr__(self):
-        repstr = 'Equation(%s, %s)' % (
-        self.lhs.__repr__(), self.rhs.__repr__())
-        return repstr
+        return f"Equation({self.lhs.__repr__()}, {self.rhs.__repr__()})"
+
+    def _repr_pretty_(self, p, cycle):
+        # NOTE: https://ipython.readthedocs.io/en/stable/config/integrating.html
+        if equation_config.human_text is False:
+            p.text(self.__repr__())
+            return
+
+        labelstr = ""
+        namestr = self._get_eqn_name()
+        if namestr != '' and equation_config.show_label:
+            labelstr += '          (' + namestr + ')'
+        p.text(self.__str__() + labelstr)
 
     def _latex(self, printer):
-        tempstr = ''
-        tempstr += printer._print(self.lhs)
-        tempstr += '='
-        tempstr += printer._print(self.rhs)
-        return tempstr
+        lhs = printer._print(self.lhs)
+        rhs = printer._print(self.rhs)
+        tempstr = f"{lhs} = {rhs}"
+
+        show_label = equation_config.show_label
+        latex_as_equations = equation_config.latex_as_equations
+
+        if latex_as_equations:
+            return r'\begin{equation}'+ tempstr +r'\end{equation}'
+        else:
+            namestr = self._get_eqn_name()
+            if namestr != '' and show_label:
+                tempstr += r'\qquad (' + namestr + ')'
+
+            return tempstr
 
     def __str__(self):
-        tempstr = ''
-        tempstr += str(self.lhs) + ' = ' + str(self.rhs)
-        return tempstr
+        return str(self.lhs) + ' = ' + str(self.rhs)
 
     def cm(self):
         """Cross-multiply the members of the equation. For example:
@@ -719,14 +734,14 @@ class _equation_config(param.Parameterized):
 
     show_label = param.Boolean(False, doc="""
         If `True` a label with the name of the equation in the python
-        environment will be shown on the screen. Default = `False`.""")
+        environment will be shown on the screen. Default to `False`.""")
 
     human_text = param.Boolean(False, doc="""
-        For text-based interactive environments, or for Python consoles,
-        by entering the name of the equation and executing this line of code
-        it will show the equation in textual format. If ``human_text=True``
-        the equation will be shown as "lhs = rhs". If ``False``, it will be
-        shown as ``Equation(lhs, rhs)``.""")
+        For text-based interactive environments, by entering the name of the
+        equation and executing that line of code it will show the equation in
+        textual format. If ``human_text=True`` the equation will be shown
+        as "lhs = rhs". If ``False``, it will be shown as
+        ``Equation(lhs, rhs)``.""")
 
     solve_to_list = param.Boolean(True, doc="""
         If ``True`` the results of a call to ``solve(...)`` will return a
@@ -750,10 +765,6 @@ class _equation_config(param.Parameterized):
         In an interactive environment like Jupyter notebook, this effectively
         moves the equation horizontally to the center of the screen.""")
 
-    latex_printer = param.Callable(latex, doc="""
-        The latex printer function which will be used to create
-        the latex output to be shown on the screen.""")
-
     integers_as_exact = param.Boolean(False, doc="""
         If running in an IPython/Jupyter environment, preparse the content
         of a code line in order to convert integer numbers to sympy's Integer.
@@ -774,178 +785,44 @@ class _equation_config(param.Parameterized):
 
     @param.depends("integers_as_exact", watch=True)
     def _update_integers_as_exact(self):
-        if self.integers_as_exact:
-            set_integers_as_exact()
-        else:
-            unset_integers_as_exact()
+        _toggle_integers_as_exact(self.integers_as_exact)
 
 
 equation_config = _equation_config()
 
 
-def __latex_override__(expr, *arg):
-    equation_config = False
-    ip = False
+def _toggle_integers_as_exact(value):
+    # TODO: Currently, equation_config.integers_as_exact = True/False
+    # must be executed on its own cell. If originally we have this situation:
+    #       equation_config.integers_as_exact is False
+    # and then we execute these on the same cell:
+    #       equation_config.integers_as_exact = True
+    #       Eqn(a+1/2, b-3/4)
+    # the output will be:
+    #       a + 0.5 = b - 0.75
+    # Creating equation_config as a singleton might solve this problem.
+
     try:
-        from IPython import get_ipython
-        if get_ipython():
-            ip = True
+        import IPython
+        ipython_shell = IPython.get_ipython()
+
+        if ipython_shell:
+            input_tranformations = ipython_shell.input_transformers_post
+
+            if value is True:
+                input_tranformations.append(integers_as_exact)
+            else:
+                # The below looks excessively complicated, but more reliably finds
+                # the transformer to remove across varying IPython environments.
+                for k in input_tranformations:
+                    if "integers_as_exact" in k.__name__:
+                        input_tranformations.remove(k)
+
     except ModuleNotFoundError:
         pass
-    colab = False
-    try:
-        from google.colab import output
-        colab = True
-    except ModuleNotFoundError:
-        pass
-    show_label = False
-    latex_as_equations = False
-    latex_printer = latex
-    if ip:
-        equation_config = get_ipython().user_ns.get("equation_config", False)
-    else:
-        equation_config = globals()['equation_config']
-    if equation_config:
-        show_label = equation_config.show_label
-        latex_as_equations = equation_config.latex_as_equations
-        latex_printer = equation_config.latex_printer
-    if latex_as_equations:
-        return r'\begin{equation}'+latex_printer(expr)+r'\end{equation}'
-    else:
-        tempstr = ''
-        namestr = ''
-        if isinstance(expr, Equation):
-            namestr = expr._get_eqn_name()
-
-        if namestr != '' and equation_config and show_label:
-            tempstr += r'$'+latex_printer(expr)
-            # work around for colab's inconsistent handling of mixed latex and
-            # plain strings.
-            if colab:
-                colabname = namestr.replace('_', r'\_')
-                tempstr += r'\,\,\,\,\,\,\,\,\,\,(' + colabname + ')$'
-            else:
-                tempstr += r'\,\,\,\,\,\,\,\,\,\,$(' + namestr + ')'
-            return tempstr
-        else:
-            return '$'+latex_printer(expr) + '$'
-
-
-def __command_line_printing__(expr, *arg):
-    # print('Entering __command_line_printing__')
-    human_text = True
-    if equation_config:
-        human_text = equation_config.human_text
-    tempstr = ''
-    if not human_text:
-        return print(tempstr + repr(expr))
-    else:
-        labelstr = ''
-        namestr = ''
-        if isinstance(expr, Equation):
-            namestr = expr._get_eqn_name()
-        if namestr != '' and equation_config.show_label:
-            labelstr += '          (' + namestr + ')'
-        return print(tempstr + str(expr) + labelstr)
-
-
-# Now we inject the formatting override(s)
-ip = None
-try:
-    from IPython import get_ipython
-    ip = get_ipython()
-except ModuleNotFoundError:
-    ip = False
-formatter = None
-if ip:
-    # In an environment that can display typeset latex
-    formatter = ip.display_formatter
-    old = formatter.formatters['text/latex'].for_type(Basic,
-                                                      __latex_override__)
-    # print("For type Basic overriding latex formatter = " + str(old))
-
-    # For the terminal based IPython
-    if "text/latex" not in formatter.active_types:
-        old = formatter.formatters['text/plain'].for_type(tuple,
-                                                    __command_line_printing__)
-        # print("For type tuple overriding plain text formatter = " + str(old))
-        for k in sympy.__all__:
-            if k in globals() and not "Printer" in k:
-                if isinstance(globals()[k], type):
-                    old = formatter.formatters['text/plain'].\
-                        for_type(globals()[k], __command_line_printing__)
-                    # print("For type "+str(k)+
-                    # " overriding plain text formatter = " + str(old))
-else:
-    # command line
-    # print("Overriding command line printing of python.")
-    sys.displayhook = __command_line_printing__
-
-
-def set_integers_as_exact():
-    """This operation uses `sympy.interactive.session.int_to_Integer`, which
-    causes any number input without a decimal to be interpreted as a sympy
-    integer, to pre-parse input cells. It also sets the flag
-    `equation_config.integers_as_exact = True` This is the default
-    mode of sympy_equation. To turn this off call
-    `unset_integers_as_exact()`.
-    """
-    ip = False
-    try:
-        from IPython import get_ipython
-        ip = True
-    except ModuleNotFoundError:
-        ip = False
-    if ip:
-        if get_ipython():
-            get_ipython().input_transformers_post.append(integers_as_exact)
-            equation_config = get_ipython().user_ns.get("equation_config", False)
-            if equation_config:
-                equation_config.integers_as_exact = True
-            else:
-                raise ValueError("The equation_config object does not exist.")
-    return
-
-
-def unset_integers_as_exact():
-    """This operation disables forcing of numbers input without
-    decimals being interpreted as sympy integers. Numbers input without a
-    decimal may be interpreted as floating point if they are part of an
-    expression that undergoes python evaluation (e.g. 2/3 -> 0.6666...). It
-    also sets the flag `equation_config.integers_as_exact = False`.
-    Call `set_integers_as_exact()` to avoid this conversion of rational
-    fractions and related expressions to floating point. Algebra_with_sympy
-    starts with `set_integers_as_exact()` enabled (
-    `equation_config.integers_as_exact = True`).
-    """
-    ip = False
-    try:
-        from IPython import get_ipython
-        ip = True
-    except ModuleNotFoundError:
-        ip = False
-    if ip:
-        if get_ipython():
-            pre = get_ipython().input_transformers_post
-            # The below looks excessively complicated, but more reliably finds the
-            # transformer to remove across varying IPython environments.
-            for k in pre:
-                if "integers_as_exact" in k.__name__:
-                    pre.remove(k)
-            equation_config = get_ipython().user_ns.get("equation_config", False)
-            if equation_config:
-                equation_config.integers_as_exact = False
-            else:
-                raise ValueError("The equation_config object does not exist.")
-
-    return
 
 
 Eqn = Equation
-if ip and "text/latex" not in formatter.active_types:
-    old = formatter.formatters['text/plain'].for_type(
-        Eqn, __command_line_printing__)
-    # print("For type Equation overriding plain text formatter = " + str(old))
 
 
 def solve(f, *symbols, **flags):
