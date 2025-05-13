@@ -92,14 +92,24 @@ def integers_as_exact(lines):
     return int_to_Integer(string)
 
 
-def init_ipython_session(argv=[]):
-    """Construct new IPython session. """
+def init_ipython_session(create_shell=False, argv=[]):
+    """Take the current interactive shell (or construct a new one) and
+    append the ``sympy_equation_preparser`` transformation.
+
+    Parameters
+    ==========
+    create_shell : bool
+        If there is no active shell, create a new one. This is particularly
+        useful in testing.
+    argv : list
+        List of arguments to the new shell, only used if ``create_shell=True``.
+    """
 
     try:
         import IPython
         shell = IPython.get_ipython()
 
-        if not shell:
+        if (not shell) and create_shell:
             from IPython.terminal import ipapp
             app = ipapp.TerminalIPythonApp()
 
@@ -109,17 +119,18 @@ def init_ipython_session(argv=[]):
 
             shell = app.shell
 
-        if hasattr(shell, 'input_transformers_cleanup'):
-            shell.input_transformers_post.append(sympy_equation_preparser)
-        else:
-            import warnings
-            warnings.warn(
-                'Compact equation input unavailable.\nYou will have ' \
-                'to use the form "eq1 = Eqn(lhs,rhs)" instead of ' \
-                '"eq1=@lhs=rhs".\nIt appears you are running an ' \
-                'outdated version of IPython.\nTo fix, update IPython ' \
-                'using "pip install -U IPython".'
-            )
+        if shell:
+            if hasattr(shell, 'input_transformers_cleanup'):
+                shell.input_transformers_post.append(sympy_equation_preparser)
+            else:
+                import warnings
+                warnings.warn(
+                    'Compact equation input unavailable.\nYou will have ' \
+                    'to use the form "eq1 = Eqn(lhs,rhs)" instead of ' \
+                    '"eq1=@lhs=rhs".\nIt appears you are running an ' \
+                    'outdated version of IPython.\nTo fix, update IPython ' \
+                    'using "pip install -U IPython".'
+                )
 
         return shell
 

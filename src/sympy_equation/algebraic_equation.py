@@ -594,9 +594,6 @@ class Equation(Basic, EvalfMixin):
     def _eval_power(self, other):
         return self.__pow__(other)
 
-    #####
-    # Operation helper functions
-    #####
     def expand(self, *args, **kwargs):
         return Equation(self.lhs.expand(*args, **kwargs), self.rhs.expand(
             *args, **kwargs))

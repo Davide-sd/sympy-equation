@@ -1,7 +1,7 @@
 import pytest
-import IPython
+from sympy_equation.preparser import init_ipython_session
 
 
 @pytest.fixture
 def ipython_shell():
-    return IPython.get_ipython()
+    return init_ipython_session(create_shell=True)

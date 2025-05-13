@@ -81,6 +81,12 @@ def test_binary_op():
     assert tsteqn**a == Equation(a**a, (b/c)**a)
     assert tsteqn._eval_power(tsteqn) == Equation(a**a, (b/c)**(b/c))
     assert tsteqn._eval_power(a) == Equation(a**a, (b/c)**a)
+    pytest.raises(TypeError, lambda: tsteqn & tsteqn)
+    pytest.raises(TypeError, lambda: 2 & tsteqn)
+    pytest.raises(TypeError, lambda: tsteqn & 2)
+    pytest.raises(TypeError, lambda: tsteqn ^ tsteqn)
+    pytest.raises(TypeError, lambda: 2 ^ tsteqn)
+    pytest.raises(TypeError, lambda: tsteqn ^ 2)
 
 
 @pytest.mark.parametrize("show_label, human_text, output_txt", [
@@ -124,12 +130,12 @@ def test_output_latex_show_label(
     assert latex(tsteqn) == output_latex
 
 
-def test_output_custom_latex_printer():
+def test_output_latex_custom_printer():
     f = Function("f")(a, b, c)
-    eq = Eqn(f, 2)
-    assert latex(eq) == "f{\\left(a,b,c \\right)} = 2"
+    eq = Eqn(f, 2 + sin(a))
+    assert latex(eq) == "f{\\left(a,b,c \\right)} = \\sin{\\left(a \\right)} + 2"
     # use custom printer
-    assert my_latex(eq) == "f = 2"
+    assert my_latex(eq) == "f = \\sin{\\left(a \\right)} + 2"
 
 
 def test_outputs(capsys):
@@ -252,16 +258,19 @@ def test_solve():
     x, y = symbols('x y', real = True)
     eq1 = Eqn(abs(2*x + y), 3)
     eq2 = Eqn(abs(x + 2*y), 3)
-    assert solve([eq1,eq2], x, y) == FiniteSet(FiniteSet(Equation(x, -3),
-                                   Equation(y, 3)), FiniteSet(Equation(x, -1),
-                                   Equation(y, -1)), FiniteSet(Equation(x, 1),
-                                   Equation(y, 1)), FiniteSet(Equation(x, 3),
-                                   Equation(y, -3)))
+    assert solve([eq1,eq2], x, y) == FiniteSet(
+        FiniteSet(Equation(x, -3), Equation(y, 3)),
+        FiniteSet(Equation(x, -1), Equation(y, -1)),
+        FiniteSet(Equation(x, 1), Equation(y, 1)),
+        FiniteSet(Equation(x, 3), Equation(y, -3))
+    )
     equation_config.solve_to_list = True
-    assert solve([eq1,eq2], x, y) == [[Equation(x, -3), Equation(y, 3)],
-                                      [Equation(x, -1), Equation(y, -1)],
-                                      [Equation(x, 1), Equation(y, 1)],
-                                      [Equation(x, 3), Equation(y, -3)]]
+    assert solve([eq1,eq2], x, y) == [
+        [Equation(x, -3), Equation(y, 3)],
+        [Equation(x, -1), Equation(y, -1)],
+        [Equation(x, 1), Equation(y, 1)],
+        [Equation(x, 3), Equation(y, -3)]
+    ]
 
     xi, wn = symbols("xi omega_n", real=True, positive=True)
     Tp, Ts = symbols("T_p, T_s", real=True, positive=True)
@@ -385,8 +394,9 @@ def test_cross_multiply(eqn, expected):
     (Eqn(a, b), a - b),
     (Eqn(a / b, c / d), a / b - c / d),
 ])
-def test_as_expr(eqn, expr):
+def test_as_expr_to_expr(eqn, expr):
     assert eqn.as_expr() == expr
+    assert eqn.to_expr() == expr
 
 
 @pytest.mark.parametrize("eqn, kwargs, res", [
