@@ -73,13 +73,16 @@ ignore = [
 test = [
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
+    "ruff>=0.11.9",
+    "IPython>=8.18.1",
+]
+doc = [
+    "matplotlib>=3.9.4",
+    "numpy>=2.0.2",
     "sphinx>=7.4.7",
     "numpydoc>=1.8.0",
     "sphinx-design>=0.6.1",
     "sphinx-rtd-theme>=3.0.2",
     "nbsphinx>=0.9.7",
-    "matplotlib>=3.9.4",
-    "numpy>=2.0.2",
-    "ruff>=0.11.9",
     "IPython>=8.18.1",
 ]

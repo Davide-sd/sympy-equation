@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 echo 'Core tests:'
-pdm run coverage run -m pytest
-pdm run coverage html
+pdm run --venv for-test coverage run -m pytest
+pdm run --venv for-test coverage html
 
 echo 'Doc tests:'
-pytest --ignore='tests' --doctest-modules
+pytest --venv for-test --ignore='tests' --doctest-modules
