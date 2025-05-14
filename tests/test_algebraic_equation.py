@@ -425,7 +425,7 @@ def test_issue_23():
     (Eqn(a / b, -1), Eqn(a, -b)),
 ])
 def test_cross_multiply(eqn, expected):
-    assert eqn.cm() == expected
+    assert eqn.cross_multiply() == expected
 
 
 @pytest.mark.parametrize("eqn, expr", [

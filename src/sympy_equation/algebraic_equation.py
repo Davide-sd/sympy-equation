@@ -63,7 +63,7 @@ class Equation(Basic, EvalfMixin):
         Forces simplification and casts as ``Equality`` to check validity.
     to_expr()
         Alias of ``as_expr()``.
-    cm()
+    cross_multiply()
         Given and equation ``Equation(a/b, c/d)``, cross-multiply
         the members in order to get a new ``Equation(a*d, b*c)``.
 
@@ -217,10 +217,10 @@ class Equation(Basic, EvalfMixin):
     Cross multiply members of an equation:
 
     >>> e5 = Eqn(a/b, c/d)
-    >>> e5.cm()
+    >>> e5.cross_multiply()
     Equation(a*d, b*c)
     >>> e6 = Eqn(a/(b+c), 1)
-    >>> e6.cm()
+    >>> e6.cross_multiply()
     Equation(a, b + c)
 
     Differentiation is applied to both sides:
@@ -234,16 +234,17 @@ class Equation(Basic, EvalfMixin):
     Equation(0, -2*b**2/c**3)
 
     Integration is applied to both sides:
+
     >>> q=Eqn(a*c,b/c)
     >>> integrate(q,b)
     Equation(a*b*c, b**2/(2*c))
 
-    Integration of each side with respect to different variables
+    Integration of each side with respect to different variables:
+
     >>> q.dorhs.integrate(b).dolhs.integrate(a)
     Equation(a**2*c/2, b**2/(2*c))
 
-    Automatic solutions using solvers. THIS IS EXPERIMENTAL. Please
-    report issues at https://github.com/gutow/Algebra_with_Sympy/issues.
+    Solving equations:
 
     >>> from sympy_equation import solve
     >>> eq = Eqn(a - b, c/a)
@@ -340,16 +341,18 @@ class Equation(Basic, EvalfMixin):
         Parameters
         ==========
 
-        func: object
-            object to apply usually a function
+        func : object
+            object to apply to the equation, usually a function.
 
-        args: as necessary for the function
+        *args :
+            Arguments passed to the function.
 
-        side: 'both', 'lhs', 'rhs', optional
+        side : str, optional
             Specifies which side of the equation the operation will be applied
-            to. Default is 'both'.
+            to. Default is 'both'. Possible options are 'both', 'lhs', 'rhs'.
 
-        kwargs: as necessary for the function
+        **kwargs :
+            Keyword arguments passed to the function.
          """
         lhs = self.lhs
         rhs = self.rhs
@@ -680,7 +683,7 @@ class Equation(Basic, EvalfMixin):
     def __str__(self):
         return str(self.lhs) + ' = ' + str(self.rhs)
 
-    def cm(self):
+    def cross_multiply(self):
         """Cross-multiply the members of the equation. For example:
 
         n1   n2
@@ -728,6 +731,21 @@ class Equation(Basic, EvalfMixin):
 Eqn = Equation
 
 class _equation_config(param.Parameterized):
+    """This class implements the configuration options for the module.
+
+    Do not instantiate it directly, instead import the following:
+
+    .. code-block:: python
+
+       from sympy_equation import equation_config
+
+    Then, set the appropriate attribute to the intended value, for example:
+
+    .. code-block:: python
+
+       equation_config.integers_as_exact = True
+
+    """
 
     show_label = param.Boolean(False, doc="""
         If `True` a label with the name of the equation in the python
@@ -741,9 +759,9 @@ class _equation_config(param.Parameterized):
         shown as ``Equation(lhs, rhs)``.""")
 
     solve_to_list = param.Boolean(True, doc="""
-        The results of a call to  ``solve([eq1, eq2, ...], var1, var2, ...)``
-        will return a Python ``list`` rather than a Sympy ``FiniteSet`` if
-        ``solve_to_list = True``.
+        If ``True``, the results of a call to
+        ``solve([e1, e2, ...], v1, v2, ...)`` will return a Python
+        ``list``, otherwise it returns a Sympy's ``FiniteSet``.
 
         Note: setting this `True` means that expressions within the
         returned solutions might not be pretty-printed in Jupyter and
@@ -753,13 +771,17 @@ class _equation_config(param.Parameterized):
         If `True` any output that is returned as LaTex for
         pretty-printing will be wrapped in the formal Latex for an
         equation. For example rather than:
+
         ```
         \\frac{a}{b}=c
         ```
+
         the output will be:
+
         ```
         \\begin{equation}\\frac{a}{b}=c\\end{equation}
         ```
+
         In an interactive environment like Jupyter notebook, this effectively
         moves the equation horizontally to the center of the screen.""")
 
