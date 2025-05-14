@@ -71,9 +71,6 @@ Arguably the most useful options are  :
   converted to Integer(2)/Integer(3), which then SymPy converts
   to Rational(2, 3). If False, no preparsing is done, and Python evaluates
   2/3 to 0.6666667, which will then be converted by SymPy to a Float.
-* ``equation_config.latex_printer`` (default is ``latex``). It allows to
-  provide a callable to a custom latex printer. This can be useful,
-  for example, to modify the way undefined applied functions are rendered.
 * ``equation_config.show_label`` (default is False). When it's True, a label
   with the name of the equation in the python environment will be shown on
   the screen.
