@@ -17,7 +17,6 @@ from sympy_equation.algebraic_equation import (
 )
 import sympy_equation as se
 import pytest
-import sys
 
 
 equation_config.show_label = True
@@ -41,7 +40,7 @@ def my_latex(expr, **settings):
 def test_define_equation():
     a, b, c = symbols('a b c')
     pytest.raises(TypeError, lambda: Equation(FiniteSet(a), FiniteSet(b, c)))
-    assert(Equation(1, 0).check() == False)
+    assert Equation(1, 0).check is False
     assert Eqn(1, 0) == Equation(1, 0)
     tsteqn = Equation(a, b/c)
     assert tsteqn.args == (a, b/c)

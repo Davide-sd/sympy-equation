@@ -1,9 +1,8 @@
-import sys
 import param
 import sympy
 from  sympy import (
-    Expr, Basic, Equality, Add, symbols, Equality,
-    latex, Abs, Integral, fraction
+    Expr, Basic, Equality, Add,
+    Derivative, Integral, fraction
 )
 from sympy.core.add import _unevaluated_Add
 from sympy.core.evalf import EvalfMixin
