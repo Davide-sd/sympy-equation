@@ -46,6 +46,26 @@ build-backend = "pdm.backend"
 [tool.pdm]
 distribution = true
 
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+ignore = [
+    "E731", # Do not assign a lambda expression, use a def
+    "E741", # Ambiguous variable name
+    "N801", # Class name `Class_Name` should use CapWords convention
+    "N802", # Function name `fun_name` should be lowercasee
+    "N803", # Argument name `arg_name` should be lowercase
+    "N806", # Variable `var_name` in function should be lowercase
+    "TRY003", # Avoid specifying long messages outside the exception class
+    "EM101", # Exception must not use a string literal, assign to variable first
+    "EM101", # Exception must not use an f-string literal, assign to variable first
+    "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
+    "C408", # Unnecessary `dict` call (rewrite as a literal)
+    "PT006", # Wrong type passed to first argument of `@pytest.mark.parametrize`; expected `tuple`
+    "UP031", # Use format specifiers instead of percent format
+]
+
 [dependency-groups]
 test = [
     "pytest>=8.3.5",
@@ -57,4 +77,5 @@ test = [
     "nbsphinx>=0.9.7",
     "matplotlib>=3.9.4",
     "numpy>=2.0.2",
+    "ruff>=0.11.9",
 ]
