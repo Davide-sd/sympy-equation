@@ -40,7 +40,7 @@ def my_latex(expr, **settings):
 def test_define_equation():
     a, b, c = symbols('a b c')
     pytest.raises(TypeError, lambda: Equation(FiniteSet(a), FiniteSet(b, c)))
-    assert Equation(1, 0).check is False
+    assert not Equation(1, 0).check()
     assert Eqn(1, 0) == Equation(1, 0)
     tsteqn = Equation(a, b/c)
     assert tsteqn.args == (a, b/c)
@@ -184,7 +184,6 @@ def test_diff(eqn, args, kwargs, res):
     assert eqn.diff(*args, **kwargs) == res
 
 
-@pytest.mark.xfail
 def test_derivative():
     e = Equation(a, a**2*b/c)
     assert Derivative(e, a).doit() == Equation(1, 2*a*b/c)

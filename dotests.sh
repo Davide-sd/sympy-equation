@@ -5,4 +5,4 @@ pdm run coverage run -m pytest
 pdm run coverage html
 
 echo 'Doc tests:'
-pytest --ignore='tests' --ignore='Developer Testing' --ignore-glob='*old*'  --doctest-modules
+pytest --ignore='tests' --doctest-modules
