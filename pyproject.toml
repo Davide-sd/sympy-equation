@@ -48,6 +48,10 @@ distribution = true
 
 [tool.ruff]
 line-length = 79
+exclude = [
+    "doc",
+    "assets"
+]
 
 [tool.ruff.lint]
 ignore = [
