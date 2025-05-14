@@ -1,1 +1,0 @@
-/home/jonathan/GIT/Easy_Pretty_Math/Display_Math_Operations.py
