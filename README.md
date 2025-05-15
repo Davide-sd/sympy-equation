@@ -1,6 +1,7 @@
 # sympy_equation
 
 [![PyPI version](https://badge.fury.io/py/sympy-equation.svg)](https://badge.fury.io/py/sympy-equation)
+[![Conda Version](https://anaconda.org/conda-forge/sympy_equation/badges/version.svg)](https://anaconda.org/conda-forge/sympy_equation/badges/version.svg)
 [![Documentation Status](https://readthedocs.org/projects/sympy-equation/badge/?version=latest)](http://sympy-plot-backends.readthedocs.io/)
 [![](https://img.shields.io/static/v1?label=Github%20Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/Davide-sd)
 
