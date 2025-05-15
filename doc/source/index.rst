@@ -60,6 +60,7 @@ please consider sponsoring this project with either one of these options:
    :caption: Contents:
 
    install.rst
+   differences.rst
    module.rst
    tutorial.ipynb
    changelog.rst
