@@ -1,5 +1,7 @@
 # sympy_equation
 
+[![Documentation Status](https://readthedocs.org/projects/sympy-equation/badge/?version=latest)](http://sympy-plot-backends.readthedocs.io/)
+[![](https://img.shields.io/static/v1?label=Github%20Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/Davide-sd)
 
 This package defines relations that all high school and college students would
 recognize as mathematical equations, consisting of a left hand side (lhs) and
@@ -18,14 +20,14 @@ as a negative sign.
 A simple example as it would appear in a [Jupyter](https://jupyter.org)
 notebook is shown immediately below:
 
-![screenshot of simple example](assets/simple_example.png)
+![screenshot of simple example](https://raw.githubusercontent.com/Davide-sd/sympy-equation/master/assets/simple_example.png)
 
 In IPython environments (IPython, Jupyter, Google  Colab, etc...) there is
 also a shorthand syntax for entering equations provided through the IPython
 preparser. An equation can be specified as ``eq1 =@ a/b = c/d``.
 
 
-![screenshot of short syntax](assets/short_syntax.png)
+![screenshot of short syntax](https://raw.githubusercontent.com/Davide-sd/sympy-equation/master/assets/short_syntax.png)
 
 If no Python name is specified for the equation (no ``eq_name`` to the left of ``=@``), the equation will still be defined, but will not be easily accessible
 for further computation. The ``=@`` symbol combination was chosen to avoid
@@ -33,7 +35,17 @@ conflicts with reserved python  symbols while minimizing impacts on syntax
 highlighting and autoformatting.
 
 [More examples of the capabilities of Algebra with Sympy are
-here](https://gutow.github.io/Algebra_with_Sympy/Demonstration%20of%20equation%20class.html).
+here](https://sympy-equation.readthedocs.io/en/latest/tutorial.html).
+
+
+## Development and Support
+
+If you feel like a feature could be implemented, open an issue or create a PR. Implementing new features and fixing bugs requires time and energy too. If you found this module useful and would like to show your appreciation, please consider sponsoring this project with either one of these options:
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/davide_sd)
+or
+[![](https://img.shields.io/static/v1?label=Github%20Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/Davide-sd)
+
 
 
 ## Installation

@@ -29,9 +29,6 @@ preparser. An equation can be specified as ``eq1 =@ a/b = c/d``.
 .. image:: _static/short_syntax.png
    :alt: Short syntax
 
-If no Python name is specified for the equation (no ``eq_name`` to the left
-of ``=@``), the equation will still be defined, but will not be easily
-accessible for further computation.
 The ``=@`` symbol combination was chosen to avoid conflicts with reserved
 python symbols while minimizing impacts on syntax highlighting and
 autoformatting.
