@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+v1.1.3
+======
+
+* Added negation operator to the ``Equation`` class.
+
+
 v1.1.2
 ======
 
