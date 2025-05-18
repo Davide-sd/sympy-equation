@@ -449,4 +449,4 @@ def test_version():
 
 @pytest.mark.parametrize("eq", [Eqn(a, b), Eqn(a + b, c/d)])
 def test_negation(eq):
-    assert -neg == Equation(-eq.lhs, -eq.rhs)
+    assert -eq == Equation(-eq.lhs, -eq.rhs)
