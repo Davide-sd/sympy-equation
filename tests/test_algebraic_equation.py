@@ -445,3 +445,8 @@ def test_nsimplify(eqn, kwargs, res):
 
 def test_version():
     assert hasattr(se, "__version__")
+
+
+@pytest.mark.parametrize("eq", [Eqn(a, b), Eqn(a + b, c/d)])
+def test_negation(eq):
+    assert -neg == Equation(-e.lhs, -e.rhs)

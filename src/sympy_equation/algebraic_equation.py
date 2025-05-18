@@ -593,6 +593,9 @@ class Equation(Basic, EvalfMixin):
     def __rpow__(self, other):
         return self._binary_op(other, self, lambda a, b: a ** b)
 
+    def __neg__(self):
+        return self.func(-self.lhs, -self.rhs)
+
     def _eval_power(self, other):
         return self.__pow__(other)
 
