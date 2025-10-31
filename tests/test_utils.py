@@ -348,6 +348,24 @@ def test_table_of_nodes_filter(expr, select, expected):
     assert output == expected
 
 
+@pytest.mark.parametrize("expr, select, expected_idx", [
+    ( hugoniot, [], [] ),
+    ( hugoniot, [v2], [5, 9, 13, 15, 16] ),
+    ( hugoniot, [v2, p1/2], [5, 9, 11, 13, 14, 15, 16] )
+])
+def test_table_of_nodes_filter_idx_selected_nodes_1(expr, select, expected_idx):
+    t = table_of_nodes(expr, use_latex=False, auto_show=False, select=select)
+    assert t.idx_selected_nodes == expected_idx
+    assert len(t.get_selected_nodes()) == len(expected_idx)
+
+
+def test_table_of_nodes_filter_idx_selected_nodes_2():
+    t = table_of_nodes(hugoniot, use_latex=False, auto_show=False, select=[v2])
+    assert t.get_selected_nodes() == [
+        v2, -v2, v1 - v2, (p1/2 + p2/2)*(v1 - v2), hugoniot
+    ]
+
+
 @pytest.mark.parametrize("expr, indices_groups, func, expected", [
     (
         expr1,

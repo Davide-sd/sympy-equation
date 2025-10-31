@@ -5,14 +5,37 @@ from sympy import (
 )
 from numbers import Number as PythonNumber
 from typing import Callable, List
+from contextlib import contextmanager
+
+
+@contextmanager
+def edit_readonly(parameterized):
+    """
+    Temporarily set parameters on Parameterized object to readonly=False,
+    constant=False, to allow editing them.
+    """
+    params = parameterized.param.objects("existing").values()
+    readonlys = [p.readonly for p in params]
+    constants = [p.constant for p in params]
+    for p in params:
+        p.constant = False
+        p.readonly = False
+    try:
+        yield
+    except:
+        raise
+    finally:
+        for p, ro, const in zip(params, readonlys, constants):
+            p.constant = const
+            p.readonly = ro
+
 
 def _table_generator(
-    expressions: list,
+    expressions: dict[int, Expr],
     use_latex: bool=True,
     latex_printer: Callable[[Expr], str]=None,
     expr_label: str="expr",
     title: str="",
-    select: List[Expr]=[]
 ) -> None:
     if latex_printer is None:
         latex_printer = latex
@@ -41,25 +64,17 @@ def _table_generator(
         else:
             table = header + "\n" + sep + "\n"
 
-        for idx, expr in enumerate(expressions):
+        for idx, expr in expressions.items():
             expr_str = str(expr) if not use_latex else f"${latex_printer(expr)}$"
+            table += f"| {idx} | {expr_str} |\n"
 
-            if len(select) > 0:
-                if expressions[idx].has(*select):
-                    table += f"| {idx} | {expr_str} |\n"
-            else:
-                table += f"| {idx} | {expr_str} |\n"
         display(Markdown(table))
 
     else:
         rows = []
-        for i, expr in enumerate(expressions):
+        for i, expr in expressions.items():
             expr_str = str(expr) if not use_latex else f"${latex_printer(expr)}$"
-            if len(select) > 0:
-                if expressions[i].has(*select):
-                    rows.append((str(i), expr_str))
-            else:
-                rows.append((str(i), expr_str))
+            rows.append((str(i), expr_str))
 
         # Text mode: compute column widths
         index_width = max(len(r[0]) for r in rows + [("index", "")])
@@ -92,7 +107,7 @@ def table_of_arguments(
         raise TypeError("`expr` must be a SymPy object.")
 
     _table_generator(
-        expr.args,
+        {i: a for i, a in enumerate(expr.args)},
         use_latex=use_latex,
         latex_printer=latex_printer,
         expr_label="args",
@@ -105,12 +120,6 @@ class table_of_nodes(param.Parameterized):
     Nicely print the nodes of a symbolic expression as a table with two 
     columns: an index, and the node itself. The index can later be used 
     to retrive the node we are interested in.
-
-    Parameters
-    ----------
-    expr : Expr
-        A sympy expression.
-        
     """
 
     expr = param.ClassSelector(class_=Basic, doc="""
@@ -130,15 +139,18 @@ class table_of_nodes(param.Parameterized):
         after instantiation, or after editing the `expr` and `has` attributes.
         Otherwise, the ``show()`` method must be executed manually in order
         to visualize the table.""")
+    idx_selected_nodes = param.List(default=[], readonly=True, doc="""
+        Get the indices of the nodes that were filtered by ``select``.""")
 
     def __init__(self, expr, **params):
         super().__init__(expr=expr, **params)
-        self._extract_nodes()
+        self._extract_nodes_from_expr()
+        self._select_nodes()
         if self.auto_show:
             self.show()
 
     @param.depends("expr", watch=True)
-    def _extract_nodes(self):
+    def _extract_nodes_from_expr(self):
         self.nodes = sorted(
             set(postorder_traversal(self.expr)),
             # NOTE: sort by operation count, then by string representation
@@ -147,18 +159,40 @@ class table_of_nodes(param.Parameterized):
         )
 
     @param.depends("expr", "select", watch=True)
+    def _select_nodes(self):
+        indices = []
+        for i, expr in enumerate(self.nodes):
+            if expr.has(*self.select):
+                indices.append(i)
+
+        with edit_readonly(self):
+            self.idx_selected_nodes = indices
+
+    @param.depends("expr", "select", watch=True)
     def _trigger_show(self):
         if self.auto_show:
             self.show()
 
+    def get_selected_nodes(self):
+        """Returns the nodes filtered by ``select``."""
+        return [
+            node for i, node in enumerate(self.nodes)
+            if i in self.idx_selected_nodes
+        ]
+
     def show(self):
         """Show the table on the screen."""
+        indices = self.idx_selected_nodes
+        if len(self.select) == 0:
+            indices = range(len(self.nodes))
+
+        nodes = {i: self.nodes[i] for i in indices}
+
         _table_generator(
-            self.nodes,
+            nodes,
             use_latex=self.use_latex,
             latex_printer=self.latex_printer,
             expr_label="nodes",
-            select=self.select
         )
 
     def __getitem__(self, k):
