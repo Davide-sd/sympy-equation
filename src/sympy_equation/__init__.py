@@ -5,7 +5,13 @@ from sympy_equation.algebraic_equation import (
     Eqn,
     solve,
 )
-
+from sympy_equation.utils import (
+    table_of_nodes,
+    table_of_arguments,
+    process_arguments_of_add,
+    divide_term_by_term,
+    collect_reciprocal,
+)
 
 try:
     __version__ = importlib.metadata.version(__package__ or __name__)
@@ -18,4 +24,9 @@ __all__ = [
     "Equation",
     "Eqn",
     "solve",
+    "table_of_nodes",
+    "table_of_arguments",
+    "process_arguments_of_add",
+    "divide_term_by_term",
+    "collect_reciprocal",
 ]

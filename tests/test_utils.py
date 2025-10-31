@@ -1,0 +1,397 @@
+from sympy_equation import (
+    Eqn,
+    table_of_arguments,
+    table_of_nodes,
+    process_arguments_of_add,
+    divide_term_by_term,
+    collect_reciprocal,
+)
+from sympy import symbols, Rational, factor
+from contextlib import redirect_stdout
+import io
+import pytest
+from unittest.mock import patch
+from IPython.display import Markdown
+
+
+a, b, c, d, e = symbols("a:e")
+e1, e2, p1, p2, v1, v2 = symbols("e1, e2, p1, p2, v1, v2", real=True, positive=True)
+Cv, R, T1, T2, gamma = symbols("C_v, R, T1, T2, gamma", real=True, positive=True)
+hugoniot = Eqn(e2 - e1, (p1 + p2) / 2 * (v1 - v2))
+eq1 = Eqn(
+    p2*v2/(p1*v1),
+    gamma/2 - gamma*v2/(2*v1) + gamma*p2/(2*p1) - gamma*p2*v2/(2*p1*v1) + Rational(1, 2) + v2/(2*v1) - p2/(2*p1) + p2*v2/(2*p1*v1)
+)
+expr1 = gamma - gamma*v2/v1 + gamma*p2/p1 + 1 + v2/v1 - p2/p1
+expr2 = (gamma + 1 - v2*(gamma - 1)/v1 + p2*(gamma - 1)/p1)/(gamma - 1)
+expr3 = a + b - c / d
+
+
+def test_table_of_arguments_wrong_expr_type():
+    pytest.raises(TypeError, lambda: table_of_arguments(0))
+    pytest.raises(TypeError, lambda: table_of_arguments("test"))
+    pytest.raises(TypeError, lambda: table_of_arguments(pytest))
+
+
+@pytest.mark.parametrize("expr, expected", [
+    (
+        hugoniot,
+        """index | args                   
+------|------------------------
+0     | -e1 + e2               
+1     | (p1/2 + p2/2)*(v1 - v2)
+"""
+    ),
+    (
+        hugoniot.lhs,
+        """index | args
+------|-----
+0     | e2  
+1     | -e1 
+"""
+    ),
+    (
+        hugoniot.rhs,
+        """index | args       
+------|------------
+0     | v1 - v2    
+1     | p1/2 + p2/2
+"""
+    ),
+    (
+        eq1.rhs,
+        """index | args                  
+------|-----------------------
+0     | 1/2                   
+1     | gamma/2               
+2     | v2/(2*v1)             
+3     | -p2/(2*p1)            
+4     | gamma*p2/(2*p1)       
+5     | -gamma*v2/(2*v1)      
+6     | p2*v2/(2*p1*v1)       
+7     | -gamma*p2*v2/(2*p1*v1)
+"""
+    )
+])
+def test_table_of_arguments_text(expr, expected):
+    f = io.StringIO()
+    with redirect_stdout(f):
+        table_of_arguments(expr, use_latex=False)
+    output = f.getvalue()
+    assert output == expected
+
+
+@pytest.mark.parametrize("expr, expected", [
+    (
+        hugoniot,
+        r"""| index | args |
+|:-----:|:------|
+| 0 | $- e_{1} + e_{2}$ |
+| 1 | $\left(\frac{p_{1}}{2} + \frac{p_{2}}{2}\right) \left(v_{1} - v_{2}\right)$ |
+"""
+    ),
+    (
+        eq1.rhs,
+        r"""| index | args |
+|:-----:|:------|
+| 0 | $\frac{1}{2}$ |
+| 1 | $\frac{\gamma}{2}$ |
+| 2 | $\frac{v_{2}}{2 v_{1}}$ |
+| 3 | $- \frac{p_{2}}{2 p_{1}}$ |
+| 4 | $\frac{\gamma p_{2}}{2 p_{1}}$ |
+| 5 | $- \frac{\gamma v_{2}}{2 v_{1}}$ |
+| 6 | $\frac{p_{2} v_{2}}{2 p_{1} v_{1}}$ |
+| 7 | $- \frac{\gamma p_{2} v_{2}}{2 p_{1} v_{1}}$ |
+"""
+    )
+])
+def test_table_of_arguments_markdown(expr, expected):
+    # Patch display *at its import location*, i.e., IPython.display.display
+    with patch("IPython.display.display") as mock_display:
+        table_of_arguments(expr, use_latex=True)
+
+    # Ensure display was called exactly once
+    mock_display.assert_called_once()
+
+    # Retrieve the argument passed to display()
+    arg = mock_display.call_args[0][0]
+
+    # Verify it’s a Markdown instance with the expected content
+    assert isinstance(arg, Markdown)
+    assert arg.data == expected
+
+
+def test_table_of_nodes_wrong_expr_type():
+    pytest.raises(ValueError, lambda: table_of_nodes(0))
+    pytest.raises(ValueError, lambda: table_of_nodes("test"))
+    pytest.raises(ValueError, lambda: table_of_nodes(pytest))
+
+
+@pytest.mark.parametrize("expr, auto_show, expected", [
+    (
+        hugoniot,
+        True,
+        """index | nodes                             
+------|-----------------------------------
+0     | e1                                
+1     | e2                                
+2     | p1                                
+3     | p2                                
+4     | v1                                
+5     | v2                                
+6     | -1                                
+7     | -e1                               
+8     | -e1 + e2                          
+9     | -v2                               
+10    | 1/2                               
+11    | p1/2                              
+12    | p2/2                              
+13    | v1 - v2                           
+14    | p1/2 + p2/2                       
+15    | (p1/2 + p2/2)*(v1 - v2)           
+16    | -e1 + e2 = (p1/2 + p2/2)*(v1 - v2)
+"""
+    ),
+    (
+        hugoniot,
+        False,
+        ""
+    ),
+    (
+        eq1.rhs,
+        True,
+        """index | nodes                                                                                                              
+------|--------------------------------------------------------------------------------------------------------------------
+0     | gamma                                                                                                              
+1     | p1                                                                                                                 
+2     | p2                                                                                                                 
+3     | v1                                                                                                                 
+4     | v2                                                                                                                 
+5     | -1                                                                                                                 
+6     | 1/2                                                                                                                
+7     | 1/p1                                                                                                               
+8     | 1/v1                                                                                                               
+9     | gamma/2                                                                                                            
+10    | -1/2                                                                                                               
+11    | v2/(2*v1)                                                                                                          
+12    | -p2/(2*p1)                                                                                                         
+13    | gamma*p2/(2*p1)                                                                                                    
+14    | -gamma*v2/(2*v1)                                                                                                   
+15    | p2*v2/(2*p1*v1)                                                                                                    
+16    | -gamma*p2*v2/(2*p1*v1)                                                                                             
+17    | gamma/2 - gamma*v2/(2*v1) + gamma*p2/(2*p1) - gamma*p2*v2/(2*p1*v1) + 1/2 + v2/(2*v1) - p2/(2*p1) + p2*v2/(2*p1*v1)
+"""
+    ),
+    (
+        eq1.rhs,
+        False,
+        ""
+    )
+])
+def test_table_of_nodes_text(expr, auto_show, expected):
+    f = io.StringIO()
+    with redirect_stdout(f):
+        table_of_nodes(expr, use_latex=False, auto_show=auto_show)
+    output = f.getvalue()
+    assert output == expected
+
+
+@pytest.mark.parametrize("expr, auto_show, expected", [
+    (
+        hugoniot,
+        True,
+        r"""| index | nodes |
+|:-----:|:------|
+| 0 | $e_{1}$ |
+| 1 | $e_{2}$ |
+| 2 | $p_{1}$ |
+| 3 | $p_{2}$ |
+| 4 | $v_{1}$ |
+| 5 | $v_{2}$ |
+| 6 | $-1$ |
+| 7 | $- e_{1}$ |
+| 8 | $- e_{1} + e_{2}$ |
+| 9 | $- v_{2}$ |
+| 10 | $\frac{1}{2}$ |
+| 11 | $\frac{p_{1}}{2}$ |
+| 12 | $\frac{p_{2}}{2}$ |
+| 13 | $v_{1} - v_{2}$ |
+| 14 | $\frac{p_{1}}{2} + \frac{p_{2}}{2}$ |
+| 15 | $\left(\frac{p_{1}}{2} + \frac{p_{2}}{2}\right) \left(v_{1} - v_{2}\right)$ |
+| 16 | $- e_{1} + e_{2} = \left(\frac{p_{1}}{2} + \frac{p_{2}}{2}\right) \left(v_{1} - v_{2}\right)$ |
+"""
+    ),
+    (
+        hugoniot,
+        False,
+        ""
+    ),
+    (
+        eq1.rhs,
+        True,
+        r"""| index | nodes |
+|:-----:|:------|
+| 0 | $\gamma$ |
+| 1 | $p_{1}$ |
+| 2 | $p_{2}$ |
+| 3 | $v_{1}$ |
+| 4 | $v_{2}$ |
+| 5 | $-1$ |
+| 6 | $\frac{1}{2}$ |
+| 7 | $\frac{1}{p_{1}}$ |
+| 8 | $\frac{1}{v_{1}}$ |
+| 9 | $\frac{\gamma}{2}$ |
+| 10 | $- \frac{1}{2}$ |
+| 11 | $\frac{v_{2}}{2 v_{1}}$ |
+| 12 | $- \frac{p_{2}}{2 p_{1}}$ |
+| 13 | $\frac{\gamma p_{2}}{2 p_{1}}$ |
+| 14 | $- \frac{\gamma v_{2}}{2 v_{1}}$ |
+| 15 | $\frac{p_{2} v_{2}}{2 p_{1} v_{1}}$ |
+| 16 | $- \frac{\gamma p_{2} v_{2}}{2 p_{1} v_{1}}$ |
+| 17 | $\frac{\gamma}{2} - \frac{\gamma v_{2}}{2 v_{1}} + \frac{\gamma p_{2}}{2 p_{1}} - \frac{\gamma p_{2} v_{2}}{2 p_{1} v_{1}} + \frac{1}{2} + \frac{v_{2}}{2 v_{1}} - \frac{p_{2}}{2 p_{1}} + \frac{p_{2} v_{2}}{2 p_{1} v_{1}}$ |
+"""
+    ),
+    (
+        eq1.rhs,
+        False,
+        ""
+    )
+])
+def test_table_of_nodes_markdown(expr, auto_show, expected):
+    # Patch display *at its import location*, i.e., IPython.display.display
+    with patch("IPython.display.display") as mock_display:
+        table_of_nodes(expr, use_latex=True, auto_show=auto_show)
+
+    # if auto_show=True, call_count=1, otherwise call_count=0
+    assert mock_display.call_count == auto_show
+
+    if auto_show:
+        # Retrieve the argument passed to display()
+        arg = mock_display.call_args[0][0]
+
+        # Verify it’s a Markdown instance with the expected content
+        assert isinstance(arg, Markdown)
+        assert arg.data == expected
+
+
+@pytest.mark.parametrize("expr, idx, expected", [
+    (hugoniot, 0, e1),
+    (hugoniot, 1, e2),
+    (hugoniot, 8, e2 - e1),
+    (hugoniot, 14, p1/2 + p2/2),
+    (eq1.rhs, 0, gamma),
+    (eq1.rhs, 8, 1/v1),
+    (eq1.rhs, 16, -gamma*p2*v2/(2*p1*v1)),
+])
+def test_table_of_nodes_getitem_node(expr, idx, expected):
+    t = table_of_nodes(expr, auto_show=False)
+    assert t[idx] == expected
+
+
+@pytest.mark.parametrize("expr, select, expected", [
+    (
+        hugoniot,
+        [],
+        """index | nodes                             
+------|-----------------------------------
+0     | e1                                
+1     | e2                                
+2     | p1                                
+3     | p2                                
+4     | v1                                
+5     | v2                                
+6     | -1                                
+7     | -e1                               
+8     | -e1 + e2                          
+9     | -v2                               
+10    | 1/2                               
+11    | p1/2                              
+12    | p2/2                              
+13    | v1 - v2                           
+14    | p1/2 + p2/2                       
+15    | (p1/2 + p2/2)*(v1 - v2)           
+16    | -e1 + e2 = (p1/2 + p2/2)*(v1 - v2)
+"""
+    ),
+    (
+        hugoniot,
+        [v2],
+        """index | nodes                             
+------|-----------------------------------
+5     | v2                                
+9     | -v2                               
+13    | v1 - v2                           
+15    | (p1/2 + p2/2)*(v1 - v2)           
+16    | -e1 + e2 = (p1/2 + p2/2)*(v1 - v2)
+"""
+    ),
+    (
+        hugoniot,
+        [v2, p1/2],
+        """index | nodes                             
+------|-----------------------------------
+5     | v2                                
+9     | -v2                               
+11    | p1/2                              
+13    | v1 - v2                           
+14    | p1/2 + p2/2                       
+15    | (p1/2 + p2/2)*(v1 - v2)           
+16    | -e1 + e2 = (p1/2 + p2/2)*(v1 - v2)
+"""
+    )
+])
+def test_table_of_nodes_filter(expr, select, expected):
+    f = io.StringIO()
+    with redirect_stdout(f):
+        table_of_nodes(expr, use_latex=False, auto_show=True, select=select)
+    output = f.getvalue()
+    assert output == expected
+
+
+@pytest.mark.parametrize("expr, indices_groups, func, expected", [
+    (
+        expr1,
+        [2, 3],
+        factor,
+        gamma - gamma*v2/v1 + 1 + v2/v1 + p2*(gamma - 1)/p1
+    ),
+    (
+        expr1,
+        [2, 5],
+        factor,
+        gamma + gamma*p2/p1 + 1 - v2*(gamma - 1)/v1 - p2/p1
+    ),
+    (
+        expr1,
+        [[2, 5], [3, 4]],
+        factor,
+        gamma + 1 - v2*(gamma - 1)/v1 + p2*(gamma - 1)/p1
+    ),
+    (
+        expr1,
+        [[3, 4], [2, 5]],
+        factor,
+        gamma + 1 - v2*(gamma - 1)/v1 + p2*(gamma - 1)/p1
+    )
+])
+def test_process_arguments_of_add_1(expr, indices_groups, func, expected):
+    res = process_arguments_of_add(expr, indices_groups, func)
+    assert res.equals(expected)
+
+
+@pytest.mark.parametrize("expr, denominator, expected", [
+    (expr2, None, gamma/(gamma - 1) + 1/(gamma - 1) - v2/v1 + p2/p1),
+    (expr3, 2*a - e, a/(2*a - e) + b/(2*a - e) - c/(d*(2*a - e)))
+])
+def test_divide_term_by_term(expr, denominator, expected):
+    res = divide_term_by_term(expr, denominator=denominator)
+    assert res.equals(expected)
+
+
+@pytest.mark.parametrize("expr, term_to_collect, expected", [
+    (a + 1, a, a*(1 + 1/a)),
+    (-1 + v2*(gamma + 1)/(v1*(gamma - 1)), v2/v1, v2*(-v1/v2 + (gamma + 1)/(gamma - 1))/v1)
+])
+def test_collect_reciprocal(expr, term_to_collect, expected):
+    res = collect_reciprocal(expr, term_to_collect)
+    assert res.equals(expected)
