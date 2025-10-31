@@ -28,15 +28,15 @@ expr3 = a + b - c / d
 
 
 def test_table_of_arguments_wrong_expr_type():
-    pytest.raises(TypeError, lambda: table_of_arguments(0))
-    pytest.raises(TypeError, lambda: table_of_arguments("test"))
-    pytest.raises(TypeError, lambda: table_of_arguments(pytest))
+    pytest.raises(ValueError, lambda: table_of_arguments(0))
+    pytest.raises(ValueError, lambda: table_of_arguments("test"))
+    pytest.raises(ValueError, lambda: table_of_arguments(pytest))
 
 
 @pytest.mark.parametrize("expr, expected", [
     (
         hugoniot,
-        """index | args                   
+        """idx   | args                   
 ------|------------------------
 0     | -e1 + e2               
 1     | (p1/2 + p2/2)*(v1 - v2)
@@ -44,7 +44,7 @@ def test_table_of_arguments_wrong_expr_type():
     ),
     (
         hugoniot.lhs,
-        """index | args
+        """idx   | args
 ------|-----
 0     | e2  
 1     | -e1 
@@ -52,7 +52,7 @@ def test_table_of_arguments_wrong_expr_type():
     ),
     (
         hugoniot.rhs,
-        """index | args       
+        """idx   | args       
 ------|------------
 0     | v1 - v2    
 1     | p1/2 + p2/2
@@ -60,7 +60,7 @@ def test_table_of_arguments_wrong_expr_type():
     ),
     (
         eq1.rhs,
-        """index | args                  
+        """idx   | args                  
 ------|-----------------------
 0     | 1/2                   
 1     | gamma/2               
@@ -84,7 +84,7 @@ def test_table_of_arguments_text(expr, expected):
 @pytest.mark.parametrize("expr, expected", [
     (
         hugoniot,
-        r"""| index | args |
+        r"""| idx | args |
 |:-----:|:------|
 | 0 | $- e_{1} + e_{2}$ |
 | 1 | $\left(\frac{p_{1}}{2} + \frac{p_{2}}{2}\right) \left(v_{1} - v_{2}\right)$ |
@@ -92,7 +92,7 @@ def test_table_of_arguments_text(expr, expected):
     ),
     (
         eq1.rhs,
-        r"""| index | args |
+        r"""| idx | args |
 |:-----:|:------|
 | 0 | $\frac{1}{2}$ |
 | 1 | $\frac{\gamma}{2}$ |
@@ -131,7 +131,7 @@ def test_table_of_nodes_wrong_expr_type():
     (
         hugoniot,
         True,
-        """index | nodes                             
+        """idx   | nodes                             
 ------|-----------------------------------
 0     | e1                                
 1     | e2                                
@@ -160,7 +160,7 @@ def test_table_of_nodes_wrong_expr_type():
     (
         eq1.rhs,
         True,
-        """index | nodes                                                                                                              
+        """idx   | nodes                                                                                                              
 ------|--------------------------------------------------------------------------------------------------------------------
 0     | gamma                                                                                                              
 1     | p1                                                                                                                 
@@ -200,7 +200,7 @@ def test_table_of_nodes_text(expr, auto_show, expected):
     (
         hugoniot,
         True,
-        r"""| index | nodes |
+        r"""| idx | nodes |
 |:-----:|:------|
 | 0 | $e_{1}$ |
 | 1 | $e_{2}$ |
@@ -229,7 +229,7 @@ def test_table_of_nodes_text(expr, auto_show, expected):
     (
         eq1.rhs,
         True,
-        r"""| index | nodes |
+        r"""| idx | nodes |
 |:-----:|:------|
 | 0 | $\gamma$ |
 | 1 | $p_{1}$ |
@@ -292,7 +292,7 @@ def test_table_of_nodes_getitem_node(expr, idx, expected):
     (
         hugoniot,
         [],
-        """index | nodes                             
+        """idx   | nodes                             
 ------|-----------------------------------
 0     | e1                                
 1     | e2                                
@@ -316,7 +316,7 @@ def test_table_of_nodes_getitem_node(expr, idx, expected):
     (
         hugoniot,
         [v2],
-        """index | nodes                             
+        """idx   | nodes                             
 ------|-----------------------------------
 5     | v2                                
 9     | -v2                               
@@ -328,7 +328,7 @@ def test_table_of_nodes_getitem_node(expr, idx, expected):
     (
         hugoniot,
         [v2, p1/2],
-        """index | nodes                             
+        """idx   | nodes                             
 ------|-----------------------------------
 5     | v2                                
 9     | -v2                               
@@ -353,15 +353,15 @@ def test_table_of_nodes_filter(expr, select, expected):
     ( hugoniot, [v2], [5, 9, 13, 15, 16] ),
     ( hugoniot, [v2, p1/2], [5, 9, 11, 13, 14, 15, 16] )
 ])
-def test_table_of_nodes_filter_idx_selected_nodes_1(expr, select, expected_idx):
+def test_table_of_nodes_filter_idx_selected_expressions_1(expr, select, expected_idx):
     t = table_of_nodes(expr, use_latex=False, auto_show=False, select=select)
-    assert t.idx_selected_nodes == expected_idx
-    assert len(t.get_selected_nodes()) == len(expected_idx)
+    assert t.idx_selected_expressions == expected_idx
+    assert len(t.get_selected_expressions()) == len(expected_idx)
 
 
-def test_table_of_nodes_filter_idx_selected_nodes_2():
+def test_table_of_nodes_filter_idx_selected_expressions_2():
     t = table_of_nodes(hugoniot, use_latex=False, auto_show=False, select=[v2])
-    assert t.get_selected_nodes() == [
+    assert t.get_selected_expressions() == [
         v2, -v2, v1 - v2, (p1/2 + p2/2)*(v1 - v2), hugoniot
     ]
 
