@@ -5,8 +5,9 @@ from sympy_equation import (
     process_arguments_of_add,
     divide_term_by_term,
     collect_reciprocal,
+    split_two_terms_sum,
 )
-from sympy import symbols, Rational, factor
+from sympy import symbols, Rational, factor, Eq
 from contextlib import redirect_stdout
 import io
 import pytest
@@ -413,3 +414,32 @@ def test_divide_term_by_term(expr, denominator, expected):
 def test_collect_reciprocal(expr, term_to_collect, expected):
     res = collect_reciprocal(expr, term_to_collect)
     assert res.equals(expected)
+
+
+@pytest.mark.parametrize("eq, expected", [
+    # valid forms
+    (a + b, Eqn(a, -b)),
+    (a - b, Eqn(a, b)),
+    (Eq(a + b, 0), Eq(a, -b)),   # LHS is addition
+    (Eq(0, a + b), Eq(a, -b)),   # RHS is addition
+    (Eq(0, a - b), Eq(a, b)),   # RHS is addition
+    (Eqn(a + b, 0), Eqn(a, -b)),   # LHS is addition
+    (Eqn(0, a + b), Eqn(a, -b)),   # RHS is addition
+    (Eqn(0, a - b), Eqn(a, b)),   # RHS is addition
+
+    # unchanged forms
+    (a + b + c, a + b + c),
+    (Eq(a, b), Eq(a, b)),        # no addition
+    (Eq(a + b, c), Eq(a + b, c)),# neither side is zero
+    (Eq(a + b + c, 0), Eq(a + b + c, 0)), # more than 2 terms
+    (Eqn(a, b), Eqn(a, b)),        # no addition
+    (Eqn(a + b, c), Eqn(a + b, c)),# neither side is zero
+    (Eqn(a + b + c, 0), Eqn(a + b + c, 0)), # more than 2 terms
+
+    # non-equation input
+    ("not an equation", "not an equation"),
+])
+def test_split_two_terms_sum(eq, expected):
+    res = split_two_terms_sum(eq)
+    assert res == expected
+    assert type(res) is type(expected)

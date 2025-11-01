@@ -11,6 +11,7 @@ from sympy_equation.utils import (
     process_arguments_of_add,
     divide_term_by_term,
     collect_reciprocal,
+    split_two_terms_sum,
 )
 
 try:
@@ -29,4 +30,5 @@ __all__ = [
     "process_arguments_of_add",
     "divide_term_by_term",
     "collect_reciprocal",
+    "split_two_terms_sum",
 ]

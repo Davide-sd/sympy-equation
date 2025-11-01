@@ -1,8 +1,10 @@
 import param
 import warnings
 from sympy import (
-    Basic, Expr, latex, postorder_traversal, count_ops, Add, fraction
+    Basic, Expr, latex, postorder_traversal, count_ops, Add, fraction,
+    Equality
 )
+from sympy_equation.algebraic_equation import Equation
 from numbers import Number as PythonNumber
 from typing import Callable, List
 from contextlib import contextmanager
@@ -571,3 +573,46 @@ def collect_reciprocal(expr, term_to_collect, check=True):
             stacklevel=1
         )
     return new_expr
+
+
+def split_two_terms_sum(eq):
+    """
+    Consider an equation having one of the following forms:
+
+    * ``a + b = 0``: LHS is an addition of two terms.
+    * ``0 = a + b``: RHS is an addition of two terms.
+
+    This function splits the addition and places the terms
+    on the two sides of the equation: ``a = -b``.
+
+    If the equation doesn't have the expected form, the function 
+    returns it unmodified.
+
+    Parameters
+    ----------
+    eq : Expr, Equation, Equality
+
+    Returns
+    -------
+    new_eq : Equation, Equality
+    """
+    if not isinstance(eq, (Expr, Equation, Equality)):
+        return eq
+
+    if isinstance(eq, Expr):
+        addition = eq
+    else:
+        if not (eq.lhs.is_Add ^ eq.rhs.is_Add):
+            # at most one side must be an addition
+            return eq
+
+        if not ((eq.lhs == 0) ^ (eq.rhs == 0)):
+            # at most one side must be zero
+            return eq
+
+        addition = eq.lhs if eq.lhs.is_Add else eq.rhs
+
+    if len(addition.args) != 2:
+        return eq
+    class_ = Equation if isinstance(eq, Expr) else eq.func
+    return class_(addition.args[0], -addition.args[1])
