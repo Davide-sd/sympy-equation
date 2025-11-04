@@ -8,6 +8,7 @@ from sympy_equation.algebraic_equation import Equation
 from numbers import Number as PythonNumber
 from typing import Callable, List
 from contextlib import contextmanager
+import inspect
 
 
 @contextmanager
@@ -90,9 +91,121 @@ def _table_generator(
             print(f"{idx.ljust(index_width)} | {expr_str.ljust(expr_width)}")
 
 
-class _TableCommon(param.Parameterized):
-    expr = param.ClassSelector(class_=Basic, doc="""
-        The symbolic expression whose nodes are to be shown""")
+class table_of_expressions(param.Parameterized):
+    """
+    Nicely print the arguments of a symbolic expression as a table with two
+    columns: an index, and the argument itself. The index can later be used
+    to retrive the argument we are interested in, without having to resort
+    to pattern matching operations.
+
+    There are three modes of operation:
+
+    1. ``t = table_of_expressions(list/set of expressions)``: sort the list/set
+       of expressions in a deterministic way and visualize the table on the
+       screen. This is useful when dealing with results of pattern 
+       matching operations.
+    2. ``t = table_of_expressions(expr, mode="args")``: visualize the arguments
+       of a symbolic expressions. These arguments are not sorted, which means
+       ``t[idx]`` returns the same expression as ``expr.args[idx]``.
+    3. ``t = table_of_expressions(expr, mode="nodes")``: visualize the unique
+       nodes of the expression tree, sorted in a deterministic way.
+       This mode uses :py:func:`sympy.postorder_traversal` in order to
+       retrieve all nodes of the expression tree. The larger the expression,
+       the greater the number of nodes. For large expressions there are two
+       disadvantages to be aware of:
+
+       * screen space: if ``auto_show=True`` the table will be automatically
+         visualized on the screen. The larger the expression tree, the more
+         time to show it on the screen and the more space will be used.
+         This can be mitigated by filtering the table with the ``select``
+         keyword arguments (see examples below).
+       * memory usage.
+
+    Examples
+    --------
+
+    There are situations where we might be dealing with relatively complex and 
+    large expressions. Suppose the following expression is the result of a 
+    symbolic integration:
+
+    >>> from sympy import symbols
+    >>> from sympy_equation import table_of_nodes
+    >>> L, mdot, q, T_in, c_p, n, xi = symbols("L, mdot, q, T_in, cp, n, xi")
+    >>> expr = L**2*mdot**2*q**2*(L*q + T_in*mdot*c_p)**(n*xi) + 2*L*T_in*mdot**3*c_p*q*(L*q + T_in*mdot*c_p)**(n*xi) + T_in**2*mdot**4*c_p**2*(L*q + T_in*mdot*c_p)**(n*xi) - mdot**(n*xi + 4)*(T_in*c_p)**(n*xi + 2)
+
+    This addition is composed of 4 terms. 3 of them share a common term
+    that can be collected, ``(L*q + T_in*mdot*c_p)**(n*xi)``. 
+    
+    Let's explore the first mode of operation of this class. Instead of typing
+    that term directly and risk inserting typing errors, we can extract it 
+    with a pattern matching operation. For example, let's find all powers:
+
+    >>> ton = table_of_nodes(expr.find(Pow), use_latex=False)
+    idx   | exprs                       
+    ------|-----------------------------
+    0     | L**2                        
+    1     | T_in**2                     
+    2     | cp**2                       
+    3     | mdot**2                     
+    4     | mdot**3                     
+    5     | mdot**4                     
+    6     | q**2                        
+    7     | mdot**(n*xi + 4)            
+    8     | (T_in*cp)**(n*xi + 2)       
+    9     | (L*q + T_in*cp*mdot)**(n*xi)
+
+    The above output shows sub-expressions that are powers. The interested
+    terms is located at index 9:
+
+    >>> expr.collect(ton[9])
+    -mdot**(n*xi + 4)*(T_in*c_p)**(n*xi + 2) + (L*q + T_in*c_p*mdot)**(n*xi)*(L**2*mdot**2*q**2 + 2*L*T_in*c_p*mdot**3*q + T_in**2*c_p**2*mdot**4)
+
+    This is now an addition of 2 terms.
+
+    Let's explore the second mode of operation, which shows the arguments of a 
+    symbolic expression:
+
+    >>> t = table_of_expressions(expr, mode="args")
+    idx   | args                                              
+    ------|---------------------------------------------------
+    0     | -mdot**(n*xi + 4)*(T_in*cp)**(n*xi + 2)           
+    1     | L**2*mdot**2*q**2*(L*q + T_in*cp*mdot)**(n*xi)    
+    2     | T_in**2*cp**2*mdot**4*(L*q + T_in*cp*mdot)**(n*xi)
+    3     | 2*L*T_in*cp*mdot**3*q*(L*q + T_in*cp*mdot)**(n*xi)
+
+    The above output shows the 4 sub-expressions that composes ``expr``.
+    Again, the table can be indexed in order to retrieve the interested term,
+    for example:
+
+    >>> t[2]
+    T_in**2*cp**2*mdot**4*(L*q + T_in*cp*mdot)**(n*xi)
+
+    The third mode of operation shows a the unique nodes that are contained
+    in the expression tree.
+
+    >>> table_of_expressions(expr, mode="node")
+
+    This mode of operation usually creates large tables. The can be filtered
+    by terms contained in the nodes, using the ``select`` keyword argument.
+    For example, let's visualize the node containing the term ``L*q``:
+
+    >>> table_of_expressions(expr, select=[L*q], mode="nodes", use_latex=False)
+    idx   | nodes                                                                                                                                                                                            
+    ------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    12    | L*q                                                                                                                                                                                              
+    26    | L*q + T_in*cp*mdot                                                                                                                                                                               
+    27    | (L*q + T_in*cp*mdot)**(n*xi)                                                                                                                                                                     
+    29    | L**2*mdot**2*q**2*(L*q + T_in*cp*mdot)**(n*xi)                                                                                                                                                   
+    30    | T_in**2*cp**2*mdot**4*(L*q + T_in*cp*mdot)**(n*xi)                                                                                                                                               
+    31    | 2*L*T_in*cp*mdot**3*q*(L*q + T_in*cp*mdot)**(n*xi)                                                                                                                                               
+    32    | L**2*mdot**2*q**2*(L*q + T_in*cp*mdot)**(n*xi) + 2*L*T_in*cp*mdot**3*q*(L*q + T_in*cp*mdot)**(n*xi) + T_in**2*cp**2*mdot**4*(L*q + T_in*cp*mdot)**(n*xi) - mdot**(n*xi + 4)*(T_in*cp)**(n*xi + 2)
+
+    """
+
+    expr = param.Parameter(doc="""
+        The symbolic expression whose arguments or nodes are to be shown.""")
+    mode = param.Selector(default="args", objects=["args", "nodes"], doc="""
+        What to extract from the symbolic expression.""")
     select = param.List(default=[], item_type=(Expr, PythonNumber), doc="""
         List of targets used to filter the table. The table is constructed
         by looping over ``expressions``. If an expression contains any of
@@ -109,20 +222,63 @@ class _TableCommon(param.Parameterized):
         after instantiation, or after editing the `expr` and `has` attributes.
         Otherwise, the ``show()`` method must be executed manually in order
         to visualize the table.""")
+    column_labels = param.List(default=["idx", "exprs"], bounds=(2, 2), doc="""
+        Labels to be shown on the header of the table.""")
+    # readonly attributes
     expressions = param.List(default=[], item_type=Basic, readonly=True, doc="""
         List of sub-expressions composing `expr`.""")
     selected_idx = param.List(default=[], item_type=int, readonly=True, doc="""
         Get the indices of the expressions that were filtered 
         by ``select``.""")
-    column_labels = param.List(default=["idx", "expr"], bounds=(2, 2), doc="""
-        Labels to be shown on the header of the table.""")
 
-    def __init__(self, **params):
-        super().__init__(**params)
+    def __init__(self, expr, **params):
+        mode = params.get("mode", self.mode)
+        params.setdefault(
+            "column_labels",
+            ["idx", mode if isinstance(expr, Basic) else "exprs"]
+        )
+        super().__init__(expr=expr, **params)
         self._extract_expressions_from_expr()
         self._select_expressions()
         if self.auto_show:
             self.show()
+
+    @param.depends("expr", watch=True)
+    def _extract_expressions_from_expr(self):
+        expressions = None
+        sort = lambda _list: sorted(
+            set(_list),
+            # NOTE: sort by operation count, then by string representation
+            # for tie-breaking. This key should ensure deterministic ordering
+            key=lambda expr: (count_ops(expr), str(expr))
+        )
+
+        if inspect.isgenerator(self.expr):
+            expressions = sort(self.expr)
+        elif isinstance(self.expr, Basic):
+            if self.mode == "args":
+                # do not sort the arguments, because the knowledge of their
+                # actual indexes is very important when applying other
+                # manipulations
+                expressions = list(self.expr.args)
+            else:
+                # get a list of unique nodes, sorted by length
+                # and alphabetically
+                expressions = sort(postorder_traversal(self.expr))
+        elif isinstance(self.expr, (tuple, set, list)):
+            # self.expr is the results of some pattern-matching query
+            expressions = sort(self.expr)
+
+        if expressions is None:
+            raise TypeError(
+                "Could not extract a list of expressions from `expr`."
+                f" This is likely due to a wrong type(expr)={type(self.expr)}."
+                " Please, read the documentation to understand what"
+                " `expr` should be."
+            )
+
+        with edit_readonly(self):
+            self.expressions = expressions
 
     @param.depends("expr", "select", watch=True)
     def _select_expressions(self):
@@ -169,187 +325,6 @@ class _TableCommon(param.Parameterized):
             node for i, node in enumerate(self.expressions)
             if i in self.idx_selected_expressions
         ]
-
-
-class table_of_nodes(_TableCommon):
-    """
-    Nicely print the nodes of a symbolic expression as a table with two 
-    columns: an index, and the node itself. The index can later be used 
-    to retrive the node we are interested in, without having to resort
-    to pattern matching operations.
-
-    This class uses :py:func:`sympy.postorder_traversal` in order to
-    retrieve all nodes of the expression tree. The larger the expression,
-    the greater the number of nodes. There are two disadvantages in using
-    this class for large or huge expressions:
-
-    1. screen space: if ``auto_show=True`` the table will be automatically
-       visualized on the screen. The larger the expression tree, the more
-       time to show it on the screen and the more space will be used.
-       This can be mitigated by filtering the table with the ``select``
-       keyword arguments (see examples below).
-    2. memory usage.
-
-    Examples
-    --------
-
-    Let's consider a simple expression. By default, this class is going
-    to visualize all nodes of the expression tree:
-
-    >>> from sympy import symbols
-    >>> from sympy_equation import table_of_nodes
-    >>> a, b, c = symbols("a, b, c")
-    >>> expr = c * (a - b)
-    >>> ton = table_of_nodes(expr, use_latex=False)
-    idx   | nodes    
-    ------|----------
-    0     | a        
-    1     | b        
-    2     | c        
-    3     | -1       
-    4     | -b       
-    5     | a - b    
-    6     | c*(a - b)
-
-    Let's say we would like to extract the node ``a - b``. Then, we index
-    the table:
-
-    >>> ton[5]
-    a - b
-
-    Let's see a useful application of this class. There are situations where 
-    we might be dealing with relatively complex and large expressions. 
-    Suppose the following expression is the result of a symbolic integration:
-
-    >>> L, mdot, q, T_in, c_p, n, xi = symbols("L, mdot, q, T_in, cp, n, xi")
-    >>> expr = L**2*mdot**2*q**2*(L*q + T_in*mdot*c_p)**(n*xi) + 2*L*T_in*mdot**3*c_p*q*(L*q + T_in*mdot*c_p)**(n*xi) + T_in**2*mdot**4*c_p**2*(L*q + T_in*mdot*c_p)**(n*xi) - mdot**(n*xi + 4)*(T_in*c_p)**(n*xi + 2)
-
-    This addition is composed of 4 terms. 3 of them share a common term
-    that can be collected, ``(L*q + T_in*mdot*c_p)**(n*xi)``. Instead of typing
-    it directly and risk inserting typing errors, we can extract it from
-    the expression tree. However, in this case the expression tree is large.
-    We can filter the table with the ``select`` keyword:
-
-    >>> ton = table_of_nodes(expr, select=[L*q], use_latex=False)
-    idx   | nodes                                                                                                                                                                                                  
-    ------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    12    | L*q                                                                                                                                                                                                    
-    26    | L*q + T_in*c_p*mdot                                                                                                                                                                                    
-    27    | (L*q + T_in*c_p*mdot)**(n*xi)                                                                                                                                                                          
-    29    | L**2*mdot**2*q**2*(L*q + T_in*c_p*mdot)**(n*xi)                                                                                                                                                        
-    30    | T_in**2*c_p**2*mdot**4*(L*q + T_in*c_p*mdot)**(n*xi)                                                                                                                                                   
-    31    | 2*L*T_in*c_p*mdot**3*q*(L*q + T_in*c_p*mdot)**(n*xi)                                                                                                                                                   
-    32    | L**2*mdot**2*q**2*(L*q + T_in*c_p*mdot)**(n*xi) + 2*L*T_in*c_p*mdot**3*q*(L*q + T_in*c_p*mdot)**(n*xi) + T_in**2*c_p**2*mdot**4*(L*q + T_in*c_p*mdot)**(n*xi) - mdot**(n*xi + 4)*(T_in*c_p)**(n*xi + 2)
-
-    The above output shows all nodes of the expression tree containing 
-    the ``L*q`` term. From this table we can quickly select the target node:
-
-    >>> e.collect(ton[27])
-    -mdot**(n*xi + 4)*(T_in*c_p)**(n*xi + 2) + (L*q + T_in*c_p*mdot)**(n*xi)*(L**2*mdot**2*q**2 + 2*L*T_in*c_p*mdot**3*q + T_in**2*c_p**2*mdot**4)
-
-    This is now an addition of 2 terms.
-
-    See Also
-    --------
-    table_of_arguments
-    """
-
-    def __init__(self, expr, **params):
-        params.setdefault("column_labels", ["idx", "nodes"])
-        super().__init__(expr=expr, **params)
-
-    @param.depends("expr", watch=True)
-    def _extract_expressions_from_expr(self):
-        with edit_readonly(self):
-            self.expressions = sorted(
-                set(postorder_traversal(self.expr)),
-                # NOTE: sort by operation count, then by string representation
-                # for tie-breaking. This key should ensure deterministic ordering
-                key=lambda expr: (count_ops(expr), str(expr))
-            )
-
-
-class table_of_arguments(_TableCommon):
-    """
-    Nicely print the arguments of a symbolic expression as a table with two 
-    columns: an index, and the argument itself. The index can later be used 
-    to retrive the argument we are interested in, without having to resort
-    to pattern matching operations.
-
-    This class extracts the arguments of a symbolic expression.
-    There are two disadvantages in using this class for large or 
-    huge expressions:
-
-    1. screen space: if ``auto_show=True`` the table will be automatically
-       visualized on the screen. The greater the number of arguments, the more
-       time to show it on the screen and the more space will be used.
-       This can be mitigated by filtering the table with the ``select``
-       keyword arguments (see examples below).
-    2. memory usage.
-
-    Examples
-    --------
-
-    Let's consider a simple expression. By default, this class is going
-    to visualize all arguments of the expression:
-
-    >>> from sympy import symbols
-    >>> from sympy_equation import table_of_arguments
-    >>> a, b, c, d = symbols("a, b, c, d")
-    >>> expr = (a / 2 + b / 3) * (c - d)
-    >>> toa = table_of_arguments(expr, use_latex=False)
-    idx   | args     
-    ------|----------
-    0     | c - d    
-    1     | a/2 + b/3
-
-    Here, ``expr`` is a multiplication of two terms. Let's say we would like 
-    to extract the argument ``a/2 + b/3``. Then, we index the table:
-
-    >>> toa[1]
-    a/2 + b/3
-
-    Let's consider a different example, this time an addition. Here, we will 
-    filter the table using the ``select`` keyword argument in order visualize
-    only the arguments containing ``gamma``:
-
-    >>> p1, p2, v1, v2, gamma = symbols("p1, p2, v1, v2, gamma")
-    >>> expr = gamma/2 - gamma*v2/(2*v1) + gamma*p2/(2*p1) - gamma*p2*v2/(2*p1*v1) + Rational(1, 2) + v2/(2*v1) - p2/(2*p1) + p2*v2/(2*p1*v1)
-    >>> toa = table_of_arguments(expr, use_latex=False, filter=[gamma])
-    idx   | args                  
-    ------|-----------------------
-    1     | gamma/2               
-    4     | gamma*p2/(2*p1)       
-    5     | -gamma*v2/(2*v1)      
-    7     | -gamma*p2*v2/(2*p1*v1)
-
-    We can index the table like before, or we can also get all the selected
-    expressions:
-
-    >>> selected_expressions = toa.get_selected_expressions()
-    [gamma/2, gamma*p2/(2*p1), -gamma*v2/(2*v1), -gamma*p2*v2/(2*p1*v1)]
-    
-    And then apply some operation, for example:
-
-    >>> new_add = sum(selected_expressions)
-    >>> new_add
-    gamma/2 - gamma*v2/(2*v1) + gamma*p2/(2*p1) - gamma*p2*v2/(2*p1*v1)
-    >>> new_add.factor()
-    gamma*(p1 + p2)*(v1 - v2)/(2*p1*v1)
-
-    See Also
-    --------
-    table_of_nodes
-    """
-
-    def __init__(self, expr, **params):
-        params.setdefault("column_labels", ["idx", "args"])
-        super().__init__(expr=expr, **params)
-
-    @param.depends("expr", watch=True)
-    def _extract_expressions_from_expr(self):
-        with edit_readonly(self):
-            self.expressions = list(self.expr.args)
 
 
 def process_arguments_of_add(expr, indices_groups, func, check=True):

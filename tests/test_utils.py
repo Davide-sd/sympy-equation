@@ -1,13 +1,12 @@
 from sympy_equation import (
     Eqn,
-    table_of_arguments,
-    table_of_nodes,
+    table_of_expressions,
     process_arguments_of_add,
     divide_term_by_term,
     collect_reciprocal,
     split_two_terms_sum,
 )
-from sympy import symbols, Rational, factor, Eq
+from sympy import symbols, Rational, factor, Eq, Mul
 from contextlib import redirect_stdout
 import io
 import pytest
@@ -26,12 +25,33 @@ eq1 = Eqn(
 expr1 = gamma - gamma*v2/v1 + gamma*p2/p1 + 1 + v2/v1 - p2/p1
 expr2 = (gamma + 1 - v2*(gamma - 1)/v1 + p2*(gamma - 1)/p1)/(gamma - 1)
 expr3 = a + b - c / d
+expr4 = 1 / (gamma - 1) + gamma / (gamma - 1) + p2 / p1 - v2 / v1
 
 
-def test_table_of_arguments_wrong_expr_type():
-    pytest.raises(ValueError, lambda: table_of_arguments(0))
-    pytest.raises(ValueError, lambda: table_of_arguments("test"))
-    pytest.raises(ValueError, lambda: table_of_arguments(pytest))
+@pytest.mark.parametrize("mode", ["args", "nodes"])
+def test_table_of_expressions_wrong_expr_type(mode):
+    pytest.raises(TypeError, lambda: table_of_expressions(0, mode=mode))
+    pytest.raises(TypeError, lambda: table_of_expressions("test", mode=mode))
+    pytest.raises(TypeError, lambda: table_of_expressions(pytest, mode=mode))
+
+
+def test_table_of_expression_find_results():
+    # verify that the results of find, which is a set, is sorted
+    # according to the number of operations and the string representation
+    found = expr1.find(Mul)
+    assert len(found) == 4
+
+    f = io.StringIO()
+    with redirect_stdout(f):
+        table_of_expressions(found, use_latex=False)
+    output = f.getvalue()
+    assert output == """idx   | exprs       
+------|-------------
+0     | v2/v1       
+1     | -p2/p1      
+2     | gamma*p2/p1 
+3     | -gamma*v2/v1
+"""
 
 
 @pytest.mark.parametrize("expr, expected", [
@@ -72,12 +92,24 @@ def test_table_of_arguments_wrong_expr_type():
 6     | p2*v2/(2*p1*v1)       
 7     | -gamma*p2*v2/(2*p1*v1)
 """
+    ),
+    (
+        # NOTE: very important this test, because here I test that mode="args"
+        # is not going to sort arguments
+        expr4,
+        """idx   | args             
+------|------------------
+0     | 1/(gamma - 1)    
+1     | gamma/(gamma - 1)
+2     | p2/p1            
+3     | -v2/v1           
+"""
     )
 ])
-def test_table_of_arguments_text(expr, expected):
+def test_table_of_expressions_mode_args_text(expr, expected):
     f = io.StringIO()
     with redirect_stdout(f):
-        table_of_arguments(expr, use_latex=False)
+        table_of_expressions(expr, mode="args", use_latex=False)
     output = f.getvalue()
     assert output == expected
 
@@ -106,10 +138,10 @@ def test_table_of_arguments_text(expr, expected):
 """
     )
 ])
-def test_table_of_arguments_markdown(expr, expected):
+def test_table_of_expressions_mode_args_markdown(expr, expected):
     # Patch display *at its import location*, i.e., IPython.display.display
     with patch("IPython.display.display") as mock_display:
-        table_of_arguments(expr, use_latex=True)
+        table_of_expressions(expr, mode="args", use_latex=True)
 
     # Ensure display was called exactly once
     mock_display.assert_called_once()
@@ -120,12 +152,6 @@ def test_table_of_arguments_markdown(expr, expected):
     # Verify it’s a Markdown instance with the expected content
     assert isinstance(arg, Markdown)
     assert arg.data == expected
-
-
-def test_table_of_nodes_wrong_expr_type():
-    pytest.raises(ValueError, lambda: table_of_nodes(0))
-    pytest.raises(ValueError, lambda: table_of_nodes("test"))
-    pytest.raises(ValueError, lambda: table_of_nodes(pytest))
 
 
 @pytest.mark.parametrize("expr, auto_show, expected", [
@@ -189,10 +215,11 @@ def test_table_of_nodes_wrong_expr_type():
         ""
     )
 ])
-def test_table_of_nodes_text(expr, auto_show, expected):
+def test_table_of_expressions_mode_nodes_text(expr, auto_show, expected):
     f = io.StringIO()
     with redirect_stdout(f):
-        table_of_nodes(expr, use_latex=False, auto_show=auto_show)
+        table_of_expressions(
+            expr, mode="nodes", use_latex=False, auto_show=auto_show)
     output = f.getvalue()
     assert output == expected
 
@@ -258,10 +285,11 @@ def test_table_of_nodes_text(expr, auto_show, expected):
         ""
     )
 ])
-def test_table_of_nodes_markdown(expr, auto_show, expected):
+def test_table_of_expressions_mode_nodes_markdown(expr, auto_show, expected):
     # Patch display *at its import location*, i.e., IPython.display.display
     with patch("IPython.display.display") as mock_display:
-        table_of_nodes(expr, use_latex=True, auto_show=auto_show)
+        table_of_expressions(
+            expr, mode="nodes", use_latex=True, auto_show=auto_show)
 
     # if auto_show=True, call_count=1, otherwise call_count=0
     assert mock_display.call_count == auto_show
@@ -284,8 +312,8 @@ def test_table_of_nodes_markdown(expr, auto_show, expected):
     (eq1.rhs, 8, 1/v1),
     (eq1.rhs, 16, -gamma*p2*v2/(2*p1*v1)),
 ])
-def test_table_of_nodes_getitem_node(expr, idx, expected):
-    t = table_of_nodes(expr, auto_show=False)
+def test_table_of_expressions_mode_nodes_getitem(expr, idx, expected):
+    t = table_of_expressions(expr, mode="nodes", auto_show=False)
     assert t[idx] == expected
 
 
@@ -341,10 +369,11 @@ def test_table_of_nodes_getitem_node(expr, idx, expected):
 """
     )
 ])
-def test_table_of_nodes_filter(expr, select, expected):
+def test_table_of_expressions_mode_nodes_filter(expr, select, expected):
     f = io.StringIO()
     with redirect_stdout(f):
-        table_of_nodes(expr, use_latex=False, auto_show=True, select=select)
+        table_of_expressions(
+            expr, mode="nodes", use_latex=False, auto_show=True, select=select)
     output = f.getvalue()
     assert output == expected
 
@@ -354,14 +383,16 @@ def test_table_of_nodes_filter(expr, select, expected):
     ( hugoniot, [v2], [5, 9, 13, 15, 16] ),
     ( hugoniot, [v2, p1/2], [5, 9, 11, 13, 14, 15, 16] )
 ])
-def test_table_of_nodes_filter_idx_selected_expressions_1(expr, select, expected_idx):
-    t = table_of_nodes(expr, use_latex=False, auto_show=False, select=select)
+def test_table_of_expressions_filter_idx_selected_expressions_1(expr, select, expected_idx):
+    t = table_of_expressions(
+        expr, mode="nodes", use_latex=False, auto_show=False, select=select)
     assert t.idx_selected_expressions == expected_idx
     assert len(t.get_selected_expressions()) == len(expected_idx)
 
 
-def test_table_of_nodes_filter_idx_selected_expressions_2():
-    t = table_of_nodes(hugoniot, use_latex=False, auto_show=False, select=[v2])
+def test_table_of_expressions_filter_idx_selected_expressions_2():
+    t = table_of_expressions(
+        hugoniot, mode="nodes", use_latex=False, auto_show=False, select=[v2])
     assert t.get_selected_expressions() == [
         v2, -v2, v1 - v2, (p1/2 + p2/2)*(v1 - v2), hugoniot
     ]
