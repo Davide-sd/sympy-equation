@@ -4,7 +4,7 @@ from sympy_equation import (
     process_arguments_of_add,
     divide_term_by_term,
     collect_reciprocal,
-    split_two_terms_sum,
+    split_two_terms_add,
 )
 from sympy import symbols, Rational, factor, Eq, Mul
 from contextlib import redirect_stdout
@@ -470,7 +470,7 @@ def test_collect_reciprocal(expr, term_to_collect, expected):
     # non-equation input
     ("not an equation", "not an equation"),
 ])
-def test_split_two_terms_sum(eq, expected):
-    res = split_two_terms_sum(eq)
+def test_split_two_terms_add(eq, expected):
+    res = split_two_terms_add(eq)
     assert res == expected
     assert type(res) is type(expected)

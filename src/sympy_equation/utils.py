@@ -550,7 +550,7 @@ def collect_reciprocal(expr, term_to_collect, check=True):
     return new_expr
 
 
-def split_two_terms_sum(eq):
+def split_two_terms_add(eq):
     """
     Consider an equation having one of the following forms:
 
