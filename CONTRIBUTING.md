@@ -1,7 +1,7 @@
 Contribution are welcomed.
 
 1. Fork this repository.
-2. Clone this repository: `https://github.com/Davide-sd/sympy-equation.git`
+2. Clone this repository: `https://github.com/<YOUR-USERNAME>/sympy-equation.git`
 3. Enter the project directory: `cd sympy-equation`
 4. Create a new branch: `git branch -d YOUR-BRANCH-NAME`
 5. Edit existing features or add new ones, then commit.
