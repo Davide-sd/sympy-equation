@@ -8,6 +8,8 @@ Contribution are welcomed.
 6. Push the branch to your remote: `git push origin YOUR-BRANCH-NAME`
 7. Open the Pull Request.
 
+The higher the quality of the PR, the easier it is for the maintainer to review the code, suggests changes and get the PR merged.
+
 **NOTE about AI-LLM usage:** I have nothing against the use of these tools. However, many people are unable to properly control their outputs. In practice, these tools often modifies too much. With this in mind:
 
 * No [vibe coding](https://en.wikipedia.org/wiki/Vibe_coding). I prefer that you code manually and understand exactly what you are doing. If you are unable to code without an LLM, open an issue and clearly explain what's wrong or what could be implemented.
