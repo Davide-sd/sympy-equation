@@ -19,6 +19,7 @@ author = 'Davide Sandonà'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
+    "sphinx.ext.doctest",
     "numpydoc",
     "sphinx_rtd_theme",
     "sphinx_design",

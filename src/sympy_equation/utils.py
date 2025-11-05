@@ -128,8 +128,8 @@ class table_of_expressions(param.Parameterized):
     large expressions. Suppose the following expression is the result of a 
     symbolic integration:
 
-    >>> from sympy import symbols
-    >>> from sympy_equation import table_of_nodes
+    >>> from sympy import symbols, Pow
+    >>> from sympy_equation import table_of_expressions
     >>> L, mdot, q, T_in, c_p, n, xi = symbols("L, mdot, q, T_in, cp, n, xi")
     >>> expr = L**2*mdot**2*q**2*(L*q + T_in*mdot*c_p)**(n*xi) + 2*L*T_in*mdot**3*c_p*q*(L*q + T_in*mdot*c_p)**(n*xi) + T_in**2*mdot**4*c_p**2*(L*q + T_in*mdot*c_p)**(n*xi) - mdot**(n*xi + 4)*(T_in*c_p)**(n*xi + 2)
 
@@ -140,7 +140,7 @@ class table_of_expressions(param.Parameterized):
     that term directly and risk inserting typing errors, we can extract it 
     with a pattern matching operation. For example, let's find all powers:
 
-    >>> ton = table_of_nodes(expr.find(Pow), use_latex=False)
+    >>> ton = table_of_expressions(expr.find(Pow), use_latex=False)
     idx   | exprs                       
     ------|-----------------------------
     0     | L**2                        
@@ -158,14 +158,14 @@ class table_of_expressions(param.Parameterized):
     terms is located at index 9:
 
     >>> expr.collect(ton[9])
-    -mdot**(n*xi + 4)*(T_in*c_p)**(n*xi + 2) + (L*q + T_in*c_p*mdot)**(n*xi)*(L**2*mdot**2*q**2 + 2*L*T_in*c_p*mdot**3*q + T_in**2*c_p**2*mdot**4)
+    -mdot**(n*xi + 4)*(T_in*cp)**(n*xi + 2) + (L*q + T_in*cp*mdot)**(n*xi)*(L**2*mdot**2*q**2 + 2*L*T_in*cp*mdot**3*q + T_in**2*cp**2*mdot**4)
 
     This is now an addition of 2 terms.
 
     Let's explore the second mode of operation, which shows the arguments of a 
     symbolic expression:
 
-    >>> t = table_of_expressions(expr, mode="args")
+    >>> t = table_of_expressions(expr, mode="args", use_latex=False)
     idx   | args                                              
     ------|---------------------------------------------------
     0     | -mdot**(n*xi + 4)*(T_in*cp)**(n*xi + 2)           
@@ -183,13 +183,13 @@ class table_of_expressions(param.Parameterized):
     The third mode of operation shows a the unique nodes that are contained
     in the expression tree.
 
-    >>> table_of_expressions(expr, mode="node")
+    >>> table_of_expressions(expr, mode="nodes", use_latex=False)   # doctest:+SKIP
 
     This mode of operation usually creates large tables. The can be filtered
     by terms contained in the nodes, using the ``select`` keyword argument.
     For example, let's visualize the node containing the term ``L*q``:
 
-    >>> table_of_expressions(expr, select=[L*q], mode="nodes", use_latex=False)
+    >>> toe = table_of_expressions(expr, select=[L*q], mode="nodes", use_latex=False)
     idx   | nodes                                                                                                                                                                                            
     ------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     12    | L*q                                                                                                                                                                                              
@@ -338,7 +338,7 @@ def process_arguments_of_add(expr, indices_groups, func, check=True):
        new expression.
     4. replace the addition of step 2 with the new expression.
 
-    the function ``table_of_arguments`` can be used to select the 
+    the function ``table_of_expressions`` can be used to select the 
     appropriate terms to be modified.
     
     Parameters
@@ -368,12 +368,12 @@ def process_arguments_of_add(expr, indices_groups, func, check=True):
     Consider the following addition. Modify it in order to collect
     terms containing ratios. 
 
-    >>> from sympy import symbols
-    >>> from sympy_equation import process_arguments_of_add, table_of_arguments
+    >>> from sympy import symbols, factor
+    >>> from sympy_equation import process_arguments_of_add, table_of_expressions
     >>> gamma, v1, v2, p1, p2 = symbols("gamma, v1, v2, p1, p2")
     >>> expr = gamma - gamma*v2/v1 + gamma*p2/p1 + 1 + v2/v1 - p2/p1
-    >>> table_of_arguments(expr, use_latex=False)
-    index | expr        
+    >>> toe = table_of_expressions(expr, use_latex=False)
+    idx   | args        
     ------|-------------
     0     | 1           
     1     | gamma       
@@ -392,7 +392,7 @@ def process_arguments_of_add(expr, indices_groups, func, check=True):
 
     See Also
     --------
-    table_of_arguments
+    table_of_expressions
     """
     if not isinstance(expr, Expr):
         return expr
@@ -473,6 +473,7 @@ def divide_term_by_term(expr, denominator=None):
     >>> expr = a + b - c / d
     >>> den = 2*a - e
     >>> new_expr = divide_term_by_term(expr, denominator=den)
+    >>> new_expr
     a/(2*a - e) + b/(2*a - e) - c/(d*(2*a - e))
 
     """
