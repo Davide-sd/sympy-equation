@@ -6,12 +6,11 @@ from sympy_equation.algebraic_equation import (
     solve,
 )
 from sympy_equation.utils import (
-    table_of_nodes,
-    table_of_arguments,
+    table_of_expressions,
     process_arguments_of_add,
     divide_term_by_term,
     collect_reciprocal,
-    split_two_terms_sum,
+    split_two_terms_add,
 )
 
 try:
@@ -25,10 +24,9 @@ __all__ = [
     "Equation",
     "Eqn",
     "solve",
-    "table_of_nodes",
-    "table_of_arguments",
+    "table_of_expressions",
     "process_arguments_of_add",
     "divide_term_by_term",
     "collect_reciprocal",
-    "split_two_terms_sum",
+    "split_two_terms_add",
 ]
