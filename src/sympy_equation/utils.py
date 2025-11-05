@@ -481,11 +481,15 @@ def divide_term_by_term(expr, denominator=None):
         return expr
 
     if denominator is None:
+        print("a")
         numerator, denominator = fraction(expr)
     else:
+        print("b")
         numerator = expr
+    print("numerator", numerator)
+    print("denominator", denominator)
 
-    if not denominator.is_Add:
+    if not numerator.is_Add:
         return expr
     if denominator == 1:
         return expr

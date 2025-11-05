@@ -315,6 +315,7 @@ def test_table_of_expressions_mode_nodes_markdown(expr, auto_show, expected):
 def test_table_of_expressions_mode_nodes_getitem(expr, idx, expected):
     t = table_of_expressions(expr, mode="nodes", auto_show=False)
     assert t[idx] == expected
+    assert len(t) == len(t.expressions)
 
 
 @pytest.mark.parametrize("expr, select, expected", [
@@ -400,6 +401,12 @@ def test_table_of_expressions_filter_idx_selected_expressions_2():
 
 @pytest.mark.parametrize("expr, indices_groups, func, expected", [
     (
+        expr1 * expr2,
+        [0, 1],
+        factor,
+        expr1 * expr2   # Same result because it is not an addition
+    ),
+    (
         expr1,
         [2, 3],
         factor,
@@ -429,9 +436,16 @@ def test_process_arguments_of_add_1(expr, indices_groups, func, expected):
     assert res.equals(expected)
 
 
+def test_process_arguments_of_add_errors():
+    # indices are not in the correct format
+    pytest.raises(ValueError, lambda : process_arguments_of_add(expr1, {0, 1}, factor))
+
+
 @pytest.mark.parametrize("expr, denominator, expected", [
     (expr2, None, gamma/(gamma - 1) + 1/(gamma - 1) - v2/v1 + p2/p1),
-    (expr3, 2*a - e, a/(2*a - e) + b/(2*a - e) - c/(d*(2*a - e)))
+    (expr3, 2*a - e, a/(2*a - e) + b/(2*a - e) - c/(d*(2*a - e))),
+    # the numerator is not an addition. Return expr unmodified
+    ((expr3 + 1) * expr3 / (a - 1), None, (expr3 + 1) * expr3 / (a - 1))
 ])
 def test_divide_term_by_term(expr, denominator, expected):
     res = divide_term_by_term(expr, denominator=denominator)
@@ -440,7 +454,11 @@ def test_divide_term_by_term(expr, denominator, expected):
 
 @pytest.mark.parametrize("expr, term_to_collect, expected", [
     (a + 1, a, a*(1 + 1/a)),
-    (-1 + v2*(gamma + 1)/(v1*(gamma - 1)), v2/v1, v2*(-v1/v2 + (gamma + 1)/(gamma - 1))/v1)
+    (-1 + v2*(gamma + 1)/(v1*(gamma - 1)), v2/v1, v2*(-v1/v2 + (gamma + 1)/(gamma - 1))/v1),
+    # expr is not an addition: return expr unmodified
+    ((a + 1) * b, a, (a + 1) * b),
+    # the term to collect is not part of any addend: return expr unmodified
+    (a + 1, b, a + 1),
 ])
 def test_collect_reciprocal(expr, term_to_collect, expected):
     res = collect_reciprocal(expr, term_to_collect)
