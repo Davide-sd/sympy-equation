@@ -12,8 +12,8 @@ to do when  attempting to isolate (solve for) a variable. Thus the statement
 
 The intent is to allow using the mathematical tools in `SymPy <https://docs.sympy.org/latest/index.html>`_
 to rearrange equations and perform algebra in a stepwise fashion using as
-close to standard mathematical notation as  possible. In this way more people
-can successfully perform  algebraic rearrangements without stumbling over
+close to standard mathematical notation as possible. In this way more people
+can successfully perform algebraic rearrangements without stumbling over
 missed details such as a negative sign.
 
 A simple example as it would appear in a `Jupyter <https://jupyter.org>`_
@@ -56,11 +56,11 @@ please consider sponsoring this project with either one of these options:
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    install.rst
    differences.rst
    module.rst
-   tutorial.ipynb
+   tutorials/index.rst
    changelog.rst
