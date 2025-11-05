@@ -1,6 +1,14 @@
 Changelog
 ---------
 
+v1.2.0
+======
+
+* Added new submodule, ``sympy_equation.utils``, exposing new functionalities
+  targeting expression manipulations.
+* Added new examples in the documentation.
+
+
 v1.1.3
 ======
 
