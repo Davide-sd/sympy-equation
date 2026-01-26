@@ -1,12 +1,13 @@
+from dataclasses import dataclass
 from sympy.abc import greeks
 from sympy.printing.latex import LatexPrinter
 from sympy.printing.printer import print_function
 from sympy.core.function import AppliedUndef
 from sympy.printing.conventions import requires_partial
 from sympy.printing.latex import tex_greek_dictionary
-from sympy import Symbol, sympify, Derivative, Pow, Expr, latex, Mul
+from sympy import Symbol, sympify, Derivative, Pow, Expr, latex, Mul, Basic
 from sympy_equation.printing.doc_utils import extend_doc
-from typing import Callable, Any, Union, Dict, Hashable
+from typing import Callable, Any, Union, Dict, Hashable, Mapping
 import re
 
 
@@ -79,6 +80,13 @@ def _int_to_roman(num):
     return result
 
 
+@dataclass
+class OverrideRule:
+    matches: Callable[[Expr], bool]
+    settings: Mapping[str, Any]
+    applied_to: Expr
+
+
 _new_default_settings = LatexPrinter._get_initial_settings()
 _new_default_settings.update({
     "applied_undef_args": "all",
@@ -108,7 +116,6 @@ class ExtendedLatexPrinter(LatexPrinter):
     _default_settings: dict[str, Any] = _new_default_settings
 
     def __init__(self, settings=None):
-        overrides = {}
         if settings:
             _validate_setting(
                 settings,
@@ -144,25 +151,80 @@ class ExtendedLatexPrinter(LatexPrinter):
                 ["vline", "otimes", "none"]
             )
 
-            overrides = settings.pop("overrides", {})
-            if not isinstance(overrides, dict):
-                raise TypeError(
-                    "`overrides` must be a dictionary. Instead,"
-                    f" an object of type '{type(overrides)}' was received."
-                )
-            if not all(callable(k) or isinstance(k, Expr) for k in overrides):
-                raise ValueError(
-                    "Keys of `overrides` must be symbolic expressions"
-                    " or callables."
-                )
-            if not all(isinstance(v, dict) for v in overrides.values()):
-                raise ValueError(
-                    "Values of `overrides` must be dictionaries of settings"
-                    " to be passed to the printer."
-                )
-
-        self.overrides = overrides
+        self.override_rules = []
         super().__init__(settings)
+
+    def add_rule(self, expr, **settings):
+        if not isinstance(expr, Basic):
+            raise TypeError("`expr` must be a symbolic expression.")
+
+        # remove old rules
+        rules_to_remove = []
+        for r in self.override_rules:
+            if r.applied_to == expr:
+                if any(k in settings for k in r.settings):
+                    rules_to_remove.append(r)
+
+        for r in rules_to_remove:
+            self.override_rules.remove(r)
+
+        new_rules = []
+        if isinstance(expr, AppliedUndef) and ("derivative" in settings):
+            derivative_pattern = lambda current_expr: (
+                isinstance(current_expr, Derivative)
+                and (current_expr.expr == expr)
+            )
+            new_rules.append(OverrideRule(
+                matches=derivative_pattern,
+                settings={"derivative": settings.pop("derivative")},
+                applied_to=expr
+            ))
+        elif type(expr).__name__ == "CoordSys3D":
+            from sympy.vector import BaseVector, BaseScalar
+            base_pattern = lambda current_expr: (
+                isinstance(current_expr, (BaseVector, BaseScalar))
+                and (current_expr.args[1] == expr)
+            )
+            new_rules.append(OverrideRule(
+                matches=base_pattern,
+                settings=settings,
+                applied_to=expr
+            ))
+            settings = {}
+
+        if len(settings) > 0:
+            expr_pattern = lambda current_expr: current_expr == expr
+            new_rules.append(OverrideRule(
+                matches=expr_pattern, settings=settings, applied_to=expr))
+
+        self.override_rules.extend(new_rules)
+        return new_rules
+
+    def remove_rule(self, rule):
+        if not isinstance(rule, (int, OverrideRule)):
+            raise TypeError(
+                "`rule` must be an instance of `int` or `OverrideRule`."
+                f" Instead, type {type(rule).__name__} was received."
+            )
+        if isinstance(rule, int):
+            if (rule >= 0) and (rule < len(self.override_rules)):
+                self.override_rules.pop(rule)
+        elif rule in self.override_rules:
+            self.override_rules.remove(rule)
+
+    def show_rules(self):
+        if len(self.override_rules) == 0:
+            print("No rules yet.")
+            return
+
+        index_width = len(str(len(self.override_rules) - 1))
+        applied_to_width = max(
+            len(str(r.applied_to)) for r in self.override_rules) + 4
+        for i, rule in enumerate(self.override_rules):
+            idx = f"[{i:^{index_width}}]"
+            a = f"{str(rule.applied_to):<{applied_to_width}}"
+            b = f"{rule.settings}"
+            print(f"{idx} {a} {b}")
 
     def _print_Pow(self, expr: Pow):
         if (
@@ -194,26 +256,26 @@ class ExtendedLatexPrinter(LatexPrinter):
         return super()._print_Pow(expr)
 
     def _print_Function(self, expr, exp=None):
-        show_args_strategy = self._settings["applied_undef_args"]
-        if (
-            isinstance(expr, AppliedUndef)
-            and (show_args_strategy in [False, None, "first-level"])
-        ):
-            new_f = self._print(Symbol(expr.func.__name__))
-            if exp:
-                new_f = f"{new_f}^{{{exp}}}"
+        if isinstance(expr, AppliedUndef):
+            applied_undef_args = self._get_setting_for(
+                expr, "applied_undef_args")
 
-            if not show_args_strategy:
-                return new_f
-            elif (show_args_strategy == "first-level"):
-                args = []
-                for a in expr.args:
-                    if isinstance(a, AppliedUndef):
-                        a = Symbol(a.func.__name__)
-                    args.append(a)
+            if applied_undef_args in [False, None, "first-level"]:
+                new_f = self._print(Symbol(expr.func.__name__))
+                if exp:
+                    new_f = f"{new_f}^{{{exp}}}"
 
-                args = [self._print(a) for a in args]
-                return new_f + fr"{{\left({",".join(args)}\right)}}"
+                if not applied_undef_args:
+                    return new_f
+                elif (applied_undef_args == "first-level"):
+                    args = []
+                    for a in expr.args:
+                        if isinstance(a, AppliedUndef):
+                            a = Symbol(a.func.__name__)
+                        args.append(a)
+
+                    args = [self._print(a) for a in args]
+                    return new_f + fr"{{\left({",".join(args)}\right)}}"
 
         return super()._print_Function(expr, exp)
 
@@ -227,7 +289,7 @@ class ExtendedLatexPrinter(LatexPrinter):
                 "prime-roman": lambda e: self._prime_derivative(e, "prime-roman"),
             }
 
-            derivative_style = self._settings["derivative"]
+            derivative_style = self._get_setting_for(expr, "derivative")
             if derivative_style:
                 func = mapping[derivative_style]
                 res = func(expr)
@@ -250,14 +312,15 @@ class ExtendedLatexPrinter(LatexPrinter):
                                         self._print(num)))
 
         tex = diff_symbol + " " + (diff_symbol + " ").join(reversed(tex))
-        if (
-            isinstance(expr.expr, AppliedUndef)
-            and not self._settings["applied_undef_args"]
-        ):
-            if dim == 1:
-                return r"\frac{%s %s}{%s}" % (diff_symbol, self._print(expr.expr), tex)
-            else:
-                return r"\frac{%s^{%s} %s}{%s}" % (diff_symbol, self._print(dim), self._print(expr.expr), tex)
+
+        if isinstance(expr.expr, AppliedUndef):
+            applied_undef_args = self._get_setting_for(
+                expr.expr, "applied_undef_args")
+            if not applied_undef_args:
+                if dim == 1:
+                    return r"\frac{%s %s}{%s}" % (diff_symbol, self._print(expr.expr), tex)
+                else:
+                    return r"\frac{%s^{%s} %s}{%s}" % (diff_symbol, self._print(dim), self._print(expr.expr), tex)
 
         return super()._print_Derivative(expr)
 
@@ -372,41 +435,6 @@ class ExtendedLatexPrinter(LatexPrinter):
 
         return base
 
-    def _print(self, expr, **kwargs) -> str:
-        """
-        NOTE: why implement overrides like in the following, ie, spawning
-        a new instance of ExtendedLatexPrinter? Why not use the current 
-        instance? Because if I were to use the current instance, I would have
-        to modify every _print_<Class Name> in order to implement the desired
-        behaviour. Instead, by spawning a new instance I only modify 
-        this method.
-        """
-        if len(self.overrides) == 0:
-            return super()._print(expr, **kwargs)
-
-        current_settings = self._settings.copy()
-
-        keys_to_remove = [
-            "mul_symbol_latex",
-            "mul_symbol_latex_numbers",
-            "imaginary_unit_latex",
-            "diff_operator_latex",
-        ]
-        for k in keys_to_remove:
-            current_settings.pop(k, None)
-
-        if isinstance(expr, Hashable) and (expr in self.overrides):
-            current_settings.update(self.overrides[expr])
-            return ExtendedLatexPrinter(current_settings)._print(expr, **kwargs)
-
-        funcs = [k for k in self.overrides if callable(k)]
-        for f in funcs:
-            if f(expr):
-                current_settings.update(self.overrides[f])
-                return ExtendedLatexPrinter(current_settings)._print(expr, **kwargs)
-
-        return super()._print(expr, **kwargs)
-
     def _print_BaseDyadic(self, expr):
         a1, a2 = [self._print(a) for a in expr.args]
         if self._settings["dyadic_style"] == "otimes":
@@ -426,7 +454,8 @@ class ExtendedLatexPrinter(LatexPrinter):
         return f"{s_latex}{d_latex}"
 
     def _print_BaseScalar(self, expr):
-        if self._settings["base_scalar_style"] == "legacy":
+        base_scalar_style = self._get_setting_for(expr, "base_scalar_style")
+        if base_scalar_style == "legacy":
             return expr._latex_form
 
         coord_sys = expr._system._name
@@ -436,16 +465,29 @@ class ExtendedLatexPrinter(LatexPrinter):
         elif name in tex_greek_dictionary:
             name = tex_greek_dictionary[name]
 
-        if self._settings["base_scalar_style"] == "normal":
+        if base_scalar_style == "normal":
             return r"%s_{\text{%s}}" % (name, coord_sys)
-        elif self._settings["base_scalar_style"] == "normal-ns":
+        elif base_scalar_style == "normal-ns":
             return r"%s" % name
-        elif self._settings["base_scalar_style"] == "bold":
+        elif base_scalar_style == "bold":
             return r"\boldsymbol{%s}_{\textbf{%s}}" % (name, coord_sys)
         return r"\boldsymbol{%s}" % name
 
+    def _get_setting_for(self, expr, k):
+        i = 0
+        while i < len(self.override_rules):
+            if (
+                (k in self.override_rules[i].settings)
+                and self.override_rules[i].matches(expr)
+            ):
+                return self.override_rules[i].settings[k]
+            i += 1
+
+        return self._settings[k]
+
     def _print_BaseVector(self, expr):
-        if self._settings["base_vector_style"] in ["legacy", "ijk"]:
+        base_vector_style = self._get_setting_for(expr, "base_vector_style")
+        if base_vector_style in ["legacy", "ijk"]:
             return expr._latex_form
 
         idx, sys = expr.args
@@ -457,11 +499,11 @@ class ExtendedLatexPrinter(LatexPrinter):
         elif scalar_name in tex_greek_dictionary:
             scalar_name = tex_greek_dictionary[scalar_name]
 
-        if self._settings["base_vector_style"] == "ijk-ns":
+        if base_vector_style == "ijk-ns":
             return r"\mathbf{\hat{%s}}" % vector_name
-        if self._settings["base_vector_style"] == "e":
+        if base_vector_style == "e":
             return r"\mathbf{\hat{e}}^{\left(\text{%s}\right)}_{\boldsymbol{%s}}" % (system_name, scalar_name)
-        if self._settings["base_vector_style"] == "e-ns":
+        if base_vector_style == "e-ns":
             return r"\mathbf{\hat{e}}_{\boldsymbol{%s}}" % scalar_name
         return r"\mathbf{\hat{%s}}_{\boldsymbol{%s}}" % (system_name.lower(), scalar_name)
 
@@ -526,11 +568,7 @@ class ExtendedLatexPrinter(LatexPrinter):
 
 @extend_doc(latex)
 @print_function(ExtendedLatexPrinter)
-def extended_latex(
-    expr, *,
-    overrides:Dict[Union[Expr, Callable[[Expr], bool]], Dict]={},
-    **settings
-):
+def extended_latex(expr, **settings):
     r"""
     Parameters
     ----------
@@ -617,14 +655,6 @@ def extended_latex(
           terms and base vectors.
         * ``"matrix"``: vectors are rendered as 3x1 matrices.
 
-    overrides : dict
-        A dictionary mapping symbolic expressions (or pattern functions) to
-        dictionaries of printer settings, that will be used to override the
-        global behaviour of the printer. In particular, a pattern function
-        accepts one argument, a symbolic expression, and return True or False
-        depending on wheter there is a match. When there is match, the 
-        override will be applied to that symbolic expression.
-
     Examples
     --------
 
@@ -685,5 +715,4 @@ def extended_latex(
 
     * https://en.wikipedia.org/wiki/Notation_for_differentiation
     """
-    settings["overrides"] = overrides
     return ExtendedLatexPrinter(settings).doprint(expr)

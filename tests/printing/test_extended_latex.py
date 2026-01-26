@@ -1,4 +1,5 @@
 from sympy_equation import Eqn, extended_latex, multiline_latex
+from sympy_equation.printing.latex import ExtendedLatexPrinter
 from sympy import (
     symbols, Function, asin, cos, sin, sqrt, Derivative, exp, log, I,
     Rational, Pow
@@ -177,68 +178,72 @@ def test_unmodified_expr():
     assert extended_latex(e) == r"- R \sin{\left(\theta{\left(t \right)} \right)} \frac{d}{d t} \theta{\left(t \right)} - R \sin{\left(\theta{\left(t \right)} \right)} \frac{\partial}{\partial t} \operatorname{asin}{\left(\frac{R \sin{\left(\theta{\left(t \right)} \right)}}{L} \right)}"
 
 
-def test_overrides_keys_expr():
-    f = Function("f")
-    g = Function("g")
-    x, y = symbols("x, y")
-    expr = f(x, y) + g(x, y)
+def test_add_rule_1():
+    x, y, z = symbols("x:z")
+    f = Function("f")(x, y, z)
+    g = Function("g")(x, y, z)
 
-    res1 = extended_latex(
-        expr,
-        applied_undef_args=None
-    )
-    res2 = extended_latex(
-        expr,
-        applied_undef_args=None,
-        overrides={
-            g(x, y): {
-                "applied_undef_args": True
-            }
-        }
-    )
-    assert res1 == r"f + g"
-    assert res2 == r"f + g{\left(x,y \right)}"
+    p = ExtendedLatexPrinter()
+    assert len(p.override_rules) == 0
+    assert p.doprint(f + g) == r"f{\left(x,y,z \right)} + g{\left(x,y,z \right)}"
+    assert p.doprint(f.diff(x) + g.diff(y)) == r"\frac{\partial}{\partial x} f{\left(x,y,z \right)} + \frac{\partial}{\partial y} g{\left(x,y,z \right)}"
+
+    p.add_rule(g, applied_undef_args=False)
+    assert len(p.override_rules) == 1
+    assert p.doprint(f + g) == r"f{\left(x,y,z \right)} + g"
+    assert p.doprint(f.diff(x) + g.diff(y)) == r"\frac{\partial}{\partial x} f{\left(x,y,z \right)} + \frac{\partial g}{\partial y}"
+
+    p.add_rule(g, derivative="d-notation")
+    assert len(p.override_rules) == 2
+    assert p.doprint(f.diff(x) + g.diff(y)) == r"\frac{\partial}{\partial x} f{\left(x,y,z \right)} + \partial_{y}g"
 
 
-def test_overrides_keys_func():
-    f = Function("f")
-    g = Function("g")
-    x, y = symbols("x, y")
-    expr = f(x, y).diff(x, y) + g(x).diff(x)
-    pattern = lambda expr: isinstance(expr, Derivative) and expr.expr == g(x)
+def test_add_rule_2():
+    x, y, z = symbols("x:z")
+    f = Function("f")(x, y, z)
+    g = Function("g")(x)
 
-    res1 = extended_latex(
-        expr,
-        applied_undef_args=None,
-        derivative="subscript"
-    )
-    res2 = extended_latex(
-        expr,
-        applied_undef_args=None,
-        derivative="subscript",
-        overrides={
-            pattern: {
-                "derivative": "prime-arabic"
-            }
-        }
-    )
-    assert res1 == "g_{x} + f_{xy}"
-    assert res2 == r"g^{\prime} + f_{xy}"
+    p = ExtendedLatexPrinter(
+        dict(applied_undef_args=None, derivative="subscript"))
+    p.add_rule(g, derivative="prime-arabic")
+    assert p.doprint(f.diff(x) + g.diff(x, 2)) == r"f_{x} + g^{\prime\prime}"
 
 
-def test_overrides_and_unashable_expressions():
-    x, y = symbols("x, y")
-    # NOTE: this expression is not hashable
-    expr = [x**Rational(3, 2), y**Rational(2, 3)]
+def test_add_rule_3():
+    C = CoordSys3D("C")
+    x, y, z = C.base_scalars()
+    i, j, k = C.base_vectors()
+    S = C.create_new("S", transformation="spherical")
+    r, theta, phi = S.base_scalars()
+    e_r, e_theta, e_phi = S.base_vectors()
 
-    res = extended_latex(expr)
-    assert res == r"\left[ x^{\frac{3}{2}}, \  y^{\frac{2}{3}}\right]"
+    f1 = Function("f1")(x, y, z)
+    f2 = Function("f2")(x, y, z)
+    f3 = Function("f3")(x, y, z)
+    v1 = f1 * i + f2 * j + f3 * k
 
-    res = extended_latex(
-        expr,
-        overrides={lambda expr: isinstance(expr, Pow) and expr.base.has(x): {"fold_frac_powers": True}})
+    f4 = Function("f4")(r, theta, phi)
+    f5 = Function("f5")(r, theta, phi)
+    f6 = Function("f6")(r, theta, phi)
+    v2 = f4 * e_r + f5 * e_theta + f6 * e_phi
 
-    assert res == r"\left[ x^{3/2}, \  y^{\frac{2}{3}}\right]"
+    p = ExtendedLatexPrinter()
+    assert p.doprint(v1) == r"f_{1}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{i}_{C}} + f_{2}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{j}_{C}} + f_{3}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{k}_{C}}"
+    assert p.doprint(v2) == r"f_{4}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{i}_{S}} + f_{5}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{j}_{S}} + f_{6}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{k}_{S}}"
+
+    p.add_rule(S, base_vector_style="e")
+    assert p.doprint(v2) == r"f_{4}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{r}} + f_{5}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\theta}} + f_{6}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\phi}}"
+
+    p.add_rule(f4, applied_undef_args=None)
+    p.add_rule(f5, applied_undef_args=None)
+    p.add_rule(f6, applied_undef_args=None)
+    assert p.doprint(v1) == r"f_{1}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{i}_{C}} + f_{2}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{j}_{C}} + f_{3}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{k}_{C}}"
+    assert p.doprint(v2) == r"f_{4}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{r}} + f_{5}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\theta}} + f_{6}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\phi}}"
+
+    p.add_rule(C, base_scalar_style="normal-ns")
+    assert p.doprint(v1) == r"f_{1}{\left(x,y,z \right)}\,\mathbf{\hat{i}_{C}} + f_{2}{\left(x,y,z \right)}\,\mathbf{\hat{j}_{C}} + f_{3}{\left(x,y,z \right)}\,\mathbf{\hat{k}_{C}}"
+    assert p.doprint(x*y*z) == "x y z"
+    assert p.doprint(r * theta * phi) == r"\phi_{\text{S}} r_{\text{S}} \theta_{\text{S}}"
 
 
 def test_vector_dyadics():
