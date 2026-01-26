@@ -1,5 +1,5 @@
 from sympy_equation import Eqn, extended_latex, multiline_latex
-from sympy_equation.printing.latex import ExtendedLatexPrinter
+from sympy_equation.printing.extended_latex import ExtendedLatexPrinter
 from sympy import (
     symbols, Function, asin, cos, sin, sqrt, Derivative, exp, log, I,
     Rational, Pow

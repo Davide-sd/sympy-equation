@@ -34,7 +34,7 @@ DAMAGE.
 """
 
 from sympy import Expr
-from sympy_equation.printing.latex import extended_latex
+from sympy_equation.printing.extended_latex import extended_latex
 from typing import Callable
 
 
