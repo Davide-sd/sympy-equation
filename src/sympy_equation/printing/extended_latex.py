@@ -5,7 +5,9 @@ from sympy.printing.printer import print_function
 from sympy.core.function import AppliedUndef
 from sympy.printing.conventions import requires_partial
 from sympy.printing.latex import tex_greek_dictionary
-from sympy import Symbol, sympify, Derivative, Pow, Expr, latex, Mul, Basic
+from sympy import (
+    Symbol, sympify, Derivative, Pow, Expr, latex, Mul, Basic, Tuple
+)
 from sympy_equation.printing.doc_utils import extend_doc
 from typing import Callable, Any, Union, Dict, Hashable, Mapping
 import re
@@ -110,7 +112,90 @@ def _validate_setting(settings, name, allowed_values):
 
 class ExtendedLatexPrinter(LatexPrinter):
     r""" 
-    Extended Latex printer with new options.
+    Extended Latex printer with new options and ability to set customization
+    rules for selected types of symbolic expressions.
+
+    Examples
+    --------
+
+    >>> from sympy_equation.printing.extended_latex import ExtendedLatexPrinter
+    >>> x, y, z, t = symbols("x:z t")
+    >>> f = Function("f")(x, y, z)
+    >>> g = Function("g")(t)
+    >>> expr = f.diff(x, 2) + g.diff(t)
+    >>> printer = ExtendedLatexPrinter()
+
+    Use the ``doprint`` method in order to generate Latex code of a symbolic
+    expressions:
+
+    >>> print(printer.doprint(expr))
+    \frac{\partial^{2}}{\partial x^{2}} f{\left(x,y,z \right)} + \frac{d}{d t} g{\left(t \right)}
+
+    Adding a rule to print derivatives of ``f`` using shorter partial notation:
+
+    >>> printer.add_rule(f, derivative="d-notation")
+    >>> print(printer.doprint(expr))
+    \partial_{xx}f{\left(x,y,z \right)} + \frac{d}{d t} g{\left(t \right)}
+
+    Adding a rule to print derivates of ``g`` using dot notation, while hiding
+    the arguments of ``g``:
+
+    >>> printer.add_rule(g, derivative="dot", applied_undef_args=None)
+    >>> print(printer.doprint(expr))
+    \partial_{xx}f{\left(x,y,z \right)} + \dot{g}
+
+    Customizing vectors from the sympy.vector module. For a Cartesian system
+    the default output looks like:
+
+    >>> from sympy.vector import CoordSys3D
+    >>> C = CoordSys3D("C")
+    >>> x, y, z = C.base_scalars()
+    >>> i, j, k = C.base_vectors()
+    >>> f1, f2, f3 = [Function(k)(x, y, z) for k in ["f1", "f2", "f3"]]
+    >>> v1 = f1 * i + f2 * j + f3 * k
+    >>> print(printer.doprint(v1))     # doctest: +NORMALIZE_WHITESPACE
+    f_{1}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{i}_{C}}
+    + f_{2}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{j}_{C}}
+    + f_{3}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{k}_{C}}
+
+    Hide arguments of applied undefined functions:
+
+    >>> for f in [f1, f2, f3]:
+    ...     printer.add_rule(f, applied_undef_args=None)
+    >>> print(printer.doprint(v1))
+    f_{1}\,\mathbf{\hat{i}_{C}} + f_{2}\,\mathbf{\hat{j}_{C}} + f_{3}\,\mathbf{\hat{k}_{C}}
+
+    By default, base vectors uses the i, j, k notation (for curvilinear systems
+    too), and base scalars shows the systems they are associated to:
+
+    >>> S = C.create_new("S", transformation="spherical")
+    >>> r, theta, phi = S.base_scalars()
+    >>> e_r, e_theta, e_phi = S.base_vectors()
+    >>> f4, f5, f6 = [Function(k)(r, theta, phi) for k in ["f4", "f5", "f6"]]
+    >>> v2 = f4 * e_r + f5 * e_theta + f6 * e_phi
+    >>> print(printer.doprint(v2))     # doctest: +NORMALIZE_WHITESPACE
+    f_{4}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{i}_{S}}
+    + f_{5}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{j}_{S}}
+    + f_{6}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{k}_{S}}
+
+    Set base vectors to be rendered with the '\hat{e}_{direction}' notation,
+    and base scalars to hide the system they are associated to:
+
+    >>> printer.add_rule(S, base_vector_style="e", base_scalar_style="normal-ns")
+    >>> print(printer.doprint(v2))     # doctest: +NORMALIZE_WHITESPACE
+    f_{4}{\left(r,\theta,\phi \right)}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{r}}
+    + f_{5}{\left(r,\theta,\phi \right)}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\theta}}
+    + f_{6}{\left(r,\theta,\phi \right)}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\phi}}
+
+    Hide arguments of applied undefined functions:
+
+    >>> for f in [f4, f5, f6]:
+    ...     printer.add_rule(f, applied_undef_args=None)
+    >>> print(printer.doprint(v2))     # doctest: +NORMALIZE_WHITESPACE
+    f_{4}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{r}}
+    + f_{5}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\theta}}
+    + f_{6}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\phi}}
+
     """
 
     _default_settings: dict[str, Any] = _new_default_settings
@@ -155,10 +240,41 @@ class ExtendedLatexPrinter(LatexPrinter):
         super().__init__(settings)
 
     def add_rule(self, expr, **settings):
+        r"""Add a customization rule acting on the provided symbolic expression.
+
+        See Also
+        --------
+        remove_rule, show_rules
+
+        Examples
+        --------
+
+        >>> from sympy import *
+        >>> from sympy_equation.printing.extended_latex import ExtendedLatexPrinter
+        >>> x, y, t = symbols("x y t")
+        >>> f = Function("f")(x, y)
+        >>> g = Function("g")(t)
+        >>> expr = f.diff(x, 2) + g.diff(t)
+        >>> printer = ExtendedLatexPrinter()
+        >>> print(printer.doprint(expr))
+        \frac{\partial^{2}}{\partial x^{2}} f{\left(x,y \right)} + \frac{d}{d t} g{\left(t \right)}
+
+        ``g`` is a function of time. Let's hide the argument, and set the time
+        derivative to be shown with dot notation:
+
+        >>> printer.add_rule(g, derivative="dot", applied_undef_args=None)
+        >>> print(printer.doprint(expr))
+        \frac{\partial^{2}}{\partial x^{2}} f{\left(x,y \right)} + \dot{g}
+
+        >>> printer.show_rules()
+        [0] g(t)     {'derivative': 'dot'}
+        [1] g(t)     {'applied_undef_args': None}
+        
+        """
         if not isinstance(expr, Basic):
             raise TypeError("`expr` must be a symbolic expression.")
 
-        # remove old rules
+        # remove old rules that are going to be overwritten
         rules_to_remove = []
         for r in self.override_rules:
             if r.applied_to == expr:
@@ -198,9 +314,14 @@ class ExtendedLatexPrinter(LatexPrinter):
                 matches=expr_pattern, settings=settings, applied_to=expr))
 
         self.override_rules.extend(new_rules)
-        return new_rules
 
     def remove_rule(self, rule):
+        """Remove a customization rule, specified by an index.
+
+        See Also
+        --------
+        show_rules, add_rule
+        """
         if not isinstance(rule, (int, OverrideRule)):
             raise TypeError(
                 "`rule` must be an instance of `int` or `OverrideRule`."
@@ -213,6 +334,13 @@ class ExtendedLatexPrinter(LatexPrinter):
             self.override_rules.remove(rule)
 
     def show_rules(self):
+        """Show all customization rules applied to target symbolic
+        expressions.
+
+        See Also
+        --------
+        add_rule, remove_rule
+        """
         if len(self.override_rules) == 0:
             print("No rules yet.")
             return
@@ -580,7 +708,6 @@ def extended_latex(expr, **settings):
         * ``"first-level"``: consider f(x, g(x, y)). When this option is set,
             the rendered function will look like f(x, g).
         * ``False`` or ``None``: no arguments will be shown.
-
     derivative : str or None
         Stategy to represent derivatives of applied undefined functions.
         It can be:
@@ -619,7 +746,6 @@ def extended_latex(expr, **settings):
           * df/dx -> D_x f
           * d^2 f / dx^2 -> D_x^2 f
           * ∂^2 f / ∂x∂y -> ∂_xy f
-
     base_scalar_style : str
         Controls how to render base scalars from the sympy.vector module.
         It can be:
@@ -630,7 +756,6 @@ def extended_latex(expr, **settings):
         * ``"normal-ns"``: rendered as  'symbol'. No bold font, no system.
         * ``"bold"``: rendered as 'symbol_{system}' using bold font.
         * ``"bold-ns"``: rendered as 'symbol' using bold font.
-
     base_vector_style: str
         Controls how to render base vectors and vectors from the sympy.vector
         module, when the option ``vector="legacy"``. It can be:
@@ -646,7 +771,6 @@ def extended_latex(expr, **settings):
         * ``"e-ns"``: no system is shown, '\hat{e}_{base scalar}'. This is
           useful if we are working with only one curvilinear system.
         * ``"system"``: `\hat{system}_{base scalar}`.
-
     vector : str
         Controls how to render vectors from the sympy.vector module.
         It can be:
@@ -690,26 +814,6 @@ def extended_latex(expr, **settings):
     >>> print(extended_latex(e_rx, applied_undef_args=None, derivative="subscript"))
     \psi_{rx} = x \left(x f_{\theta} \theta_{rx} + x f_{\theta\theta} \theta_{r} \theta_{x} + 2 f_{\theta} \theta_{r}\right)
     
-    Overrides the behavior of the printer in order to apply a different
-    notation style for the derivatives of the function f:
-
-    >>> pattern = lambda expr: isinstance(expr, Derivative) and expr.expr == f
-    >>> res = extended_latex(
-    ...     e_rx,
-    ...     # this settings applies globally, for each sub-expressions
-    ...     applied_undef_args=None, 
-    ...     derivative="subscript",
-    ...     # the following overrides are only applied for sub-expressions
-    ...     # matching the pattern
-    ...     overrides={
-    ...         pattern: {
-    ...             "derivative": "prime-arabic"
-    ...         }
-    ...     }
-    ... )
-    >>> print(res)
-    \psi_{rx} = x \left(x f^{\prime} \theta_{rx} + x f^{\prime\prime} \theta_{r} \theta_{x} + 2 f^{\prime} \theta_{r}\right)
-
     References
     ----------
 
