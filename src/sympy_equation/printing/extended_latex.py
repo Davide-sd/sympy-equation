@@ -300,6 +300,8 @@ class PrinterSettings(param.Parameterized):
     dyadic_style = param.Selector(
         default="otimes", objects=["none", "vline", "otimes"], doc="""
         The symbol denoting a dyadic.""")
+    colorize = param.Dict(default={}, doc="""
+        Map sub-expressions to specific latex colors.""")
 
     def __init__(self, **params):
         # sadly, there is a method called 'parenthesize_super', hence
@@ -476,6 +478,12 @@ class ExtendedLatexPrinter(PrinterSettings, LatexPrinter):
         # _print_level is the number of times self._print() was recursively
         # called. See StrPrinter._print_Float() for an example of usage
         self._print_level = 0
+
+    def _print(self, expr, **kwargs) -> str:
+        res = super()._print(expr, **kwargs)
+        if isinstance(expr, Expr) and (expr in self.colorize):
+            res = r"\textcolor{%s}{%s}" % (self.colorize[expr], res)
+        return res
 
     def add_rule(self, expr, **settings):
         r"""Add a customization rule acting on the provided symbolic expression.

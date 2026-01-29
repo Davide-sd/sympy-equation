@@ -323,6 +323,26 @@ def test_extended_latex_wrong_settings_values(setting, value):
     pytest.raises(ValueError, lambda: extended_latex(1, **kwargs))
 
 
+def test_colorize():
+    x, y, z, t = symbols("x, y, z, t")
+    f = Function("f")
+    g = Function("g")
+    expr = f(x, y, z) + 6 * g(t)
+
+    assert extended_latex(expr) == r"f{\left(x,y,z \right)} + 6 g{\left(t \right)}"
+    assert extended_latex(expr, colorize={g(t): "red"}) == r"f{\left(x,y,z \right)} + 6 \textcolor{red}{g{\left(t \right)}}"
+    assert extended_latex(expr, colorize={f(x, y, z): "green"}) == r"\textcolor{green}{f{\left(x,y,z \right)}} + 6 g{\left(t \right)}"
+    assert extended_latex(expr, colorize={f(x, y): "grblue"}) == r"f{\left(x,y,z \right)} + 6 g{\left(t \right)}"
+
+    p = ExtendedLatexPrinter()
+    assert p.doprint(expr) == r"f{\left(x,y,z \right)} + 6 g{\left(t \right)}"
+    p.colorize[g(t)] = "red"
+    assert p.doprint(expr) == r"f{\left(x,y,z \right)} + 6 \textcolor{red}{g{\left(t \right)}}"
+    p.colorize[f(x, y, z)] = "green"
+    assert p.doprint(expr) == r"\textcolor{green}{f{\left(x,y,z \right)}} + 6 \textcolor{red}{g{\left(t \right)}}"
+    p.colorize = {}
+    assert p.doprint(expr) == r"f{\left(x,y,z \right)} + 6 g{\left(t \right)}"
+
 
 ###############################################################################
 # THE FOLLOWING TESTS COMES FROM sympy.physics.vector.tests
