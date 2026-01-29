@@ -1,3 +1,4 @@
+import param
 from dataclasses import dataclass
 from sympy.abc import greeks
 from sympy.printing.latex import LatexPrinter
@@ -8,7 +9,7 @@ from sympy.printing.latex import tex_greek_dictionary
 from sympy import (
     Symbol, sympify, Derivative, Pow, Expr, latex, Mul, Basic, Tuple
 )
-from sympy_equation.printing.doc_utils import extend_doc
+from sympy_equation.printing.utils import print_function
 from typing import Callable, Any, Union, Dict, Hashable, Mapping
 import re
 
@@ -110,7 +111,268 @@ def _validate_setting(settings, name, allowed_values):
             )
 
 
-class ExtendedLatexPrinter(LatexPrinter):
+class PrinterSettings(param.Parameterized):
+    applied_undef_args = param.Selector(
+        default="all",
+        objects=[None, True, False, "all", "first-level"], doc="""
+        Strategy to represent the arguments of applied undefined functions.
+        It can be:
+
+        * ``"all"`` or ``True``: all arguments will be shown.
+        * ``"first-level"``: consider f(x, g(x, y)). When this option is set,
+            the rendered function will look like f(x, g).
+        * ``False`` or ``None``: no arguments will be shown.""")
+    base_scalar_style = param.Selector(
+        default="normal",
+        objects=["legacy", "normal", "normal-ns", "bold", "bold-ns"], doc="""
+        Controls how to render base scalars from the sympy.vector module.
+        It can be:
+
+        * ``"legacy"``: use standard SymPy's latex printer. Base scalars
+          are rendered in bold font.
+        * ``"normal"`` (default): rendered as 'symbol_{system}'. No bold font.
+        * ``"normal-ns"``: rendered as  'symbol'. No bold font, no system.
+        * ``"bold"``: rendered as 'symbol_{system}' using bold font.
+        * ``"bold-ns"``: rendered as 'symbol' using bold font.""")
+    base_vector_style = param.Selector(
+        default="ijk",
+        objects=["legacy", "ijk", "ijk-ns", "e", "e-ns", "system"], doc=r"""
+        Controls how to render base vectors and vectors from the sympy.vector
+        module, when the option ``vector="legacy"``. It can be:
+
+        * ``"legacy"``: use standard SymPy's latex printer. Base vectors are
+          rendered as '\hat{i}_{system}, \hat{j}_{system}, \hat{k}_{system}'.
+          Any coefficient to these base vectors are wrapped in parenthesis.
+        * ``"ijk"`` (default): similar to ``"legacy"``, but the coefficients
+          won't be wrapped in parenthesis, unless strictly required.
+        * ``"ijk-ns"``: no system is shown, '\hat{i}, \hat{j}, \hat{k}'.
+          This is useful if we are working with only one cartesian system.
+        * ``"e"``: '\hat{e}_{system, base scalar}'.
+        * ``"e-ns"``: no system is shown, '\hat{e}_{base scalar}'. This is
+          useful if we are working with only one curvilinear system.
+        * ``"system"``: `\hat{system}_{base scalar}`.""")
+    derivative = param.Selector(
+        default=None,
+        objects = [
+            None, "subscript", "prime-arabic", "prime-roman", "dot",
+            "d-notation"], doc=r"""
+        Stategy to represent derivatives of applied undefined functions.
+        It can be:
+
+        * None (default value): standard notation, for example df/dx.
+        * ``"prime-arabic"``: Lagrange's notation for derivatives, which only
+          works for functions with one argument. For example:
+
+          * $\frac{d f}{d x} \rightarrow f'$
+          * $\frac{d^{2} f}{d x^2} \rightarrow f''$
+          * $\frac{d^{3} f}{d x^3} \rightarrow f'''$
+          * $\frac{d^{4} f}{d x^4} \rightarrow f^{(4)}$
+
+        * ``"prime-roman"``: Lagrange's notation for derivatives, which only 
+          works for functions with one argument. For example:
+
+          * $\frac{d f}{d x} \rightarrow f'$
+          * $\frac{d^{2} f}{d x^2} \rightarrow f''$
+          * $\frac{d^{3} f}{d x^3} \rightarrow f'''$
+          * $\frac{d^{4} f}{d x^4} \rightarrow f^{iv}$
+
+        * ``"dot"``: Newton's notation for time derivatives using dots, 
+          for example $\frac{d f}{d t} \rightarrow \dot{f}$. It only works if
+          the time symbol is constructed with no assumptions.
+
+        * ``"subscript"``: add subscripts on the right side of the function
+          name. For example:
+
+          * $\frac{d f}{d x} \rightarrow (f)_{x}$
+          * $\frac{d^{2} f}{d x^2} \rightarrow (f)_{xx}$
+          * $\frac{\partial^{2} f}{\partial x \partial y} \rightarrow (f)_{xy}$
+
+        * ``"d-notation"``: add subscripts on the right side of derivative
+          short syntax. For example:
+
+          * $\frac{d f(x)}{d x} \rightarrow  D_{x} f$
+          * $\frac{d^{2} f(x)}{d x^2} \rightarrow D_{x}^{2} f$
+          * $\frac{\partial^{2} f(x, y)}{\partial x \partial y} \rightarrow \partial_{xy} f$
+        """)
+    full_prec = param.Boolean(False, doc="""
+        If set to True, a floating point number is printed with
+        full precision.""")
+    fold_frac_powers = param.Boolean(False, doc=r"""
+        Emit ``^{p/q}`` instead of ``^{\frac{p}{q}}`` for fractional
+        powers.""")
+    fold_func_brackets = param.Boolean(False, doc="""
+        Fold function brackets where applicable.""")
+    fold_short_frac = param.Boolean(False, doc=r"""
+        Emit ``p / q`` instead of ``\frac{p}{q}`` when the denominator is
+        simple enough (at most two terms and no powers). The default value is
+        ``True`` for inline mode, ``False`` otherwise.""")
+    inv_trig_style = param.Selector(default="abbreviated", objects=[
+        "abbreviated", "full", "power"], doc="""
+        How inverse trig functions should be displayed.""")
+    itex = param.Boolean(False, doc="""
+        Specifies if itex-specific syntax is used, including emitting
+        ``$$...$$``.""")
+    ln_notation = param.Boolean(False, doc=r"""
+        If set to ``True``, ``\ln`` is used instead of default ``\log``.""")
+    long_frac_ratio = param.Integer(None, bounds=(0, None), doc="""
+        The allowed ratio of the width of the numerator to the width of the
+        denominator before the printer breaks off long fractions. If ``None``
+        (the default value), long fractions are not broken up.""")
+    mat_delim = param.Selector(default="[", objects=["[", "(", "", None], doc="""
+        The delimiter to wrap around matrices.""")
+    mat_str = param.Selector(default=None, objects=[
+        "smallmatrix", "matrix", "bmatrix", "array"], doc="""
+        Which matrix environment string to emit. Defaults to ``'smallmatrix'``
+        for inline mode, ``'matrix'`` for matrices of no more than 10 columns,
+        and ``'array'`` otherwise.""")
+    mode = param.Selector(default="plain", objects=[
+        "plain", "inline", "equation", "equation*"], doc="""
+        Specifies how the generated code will be delimited. 
+        If ``mode='plain'``, then the resulting code will not be
+        delimited at all (this is the default). If ``mode='inline'`` then
+        inline LaTeX ``$...$`` will be used. If ``mode='equation'`` or
+        ``mode='equation*'``, the resulting code will be enclosed in the
+        ``equation`` or ``equation*`` environment (remember to import
+        ``amsmath`` for ``equation*``), unless the ``itex`` option is
+        set. In the latter case, the ``$$...$$`` syntax is used.""")
+    mul_symbol = param.String(
+        default=None, doc="""
+        The symbol to use for multiplication. Possible options are:
+        None, 'ldot', 'dot', 'times'.""")
+    order = param.Selector(default=None, objects=[
+        None, "lex", "grlex", "grevlex", "rev-lex", "old", "none"], doc="""
+        This parameter does nothing for `~.Mul` objects, but it reorders
+        monomials in `~.Add`. Setting ``order='old'`` uses the compatibility
+        ordering for ``~.Add`` defined in Printer. For very large expressions,
+        set the ``order`` keyword to ``'none'`` if speed is a concern.""")
+    symbol_names = param.Dict(default={}, doc="""
+        Dictionary of symbols and the custom strings they should
+        be emitted as.""")
+    root_notation = param.Boolean(True, doc="""
+        If set to ``False``, exponents of the form 1/n are printed in fractonal
+        form. Default is ``True``, to print exponent in root form.""")
+    mat_symbol_style = param.Selector(default="plain",
+        objects=["plain", "bold"], doc=r"""
+        Can be either ``'plain'`` (default) or ``'bold'``. If set to
+        ``'bold'``, a `~.MatrixSymbol` A will be printed as ``\mathbf{A}``,
+        otherwise as ``A``.""")
+    imaginary_unit = param.String(
+        default="i", doc=r"""
+        String to use for the imaginary unit. Defined options are ``'i'``
+        (default) and ``'j'``. Adding ``r`` or ``t`` in front gives ``\mathrm``
+        or ``\text``, so ``'ri'`` leads to ``\mathrm{i}``.""")
+    gothic_re_im = param.Boolean(False, doc=r"""
+        If set to ``True``, `\Re` and `\Im` is used for ``re`` and ``im``,
+        respectively. The default is ``False`` leading to `\operatorname{re}`
+        and `\operatorname{im}`.""")
+    decimal_separator = param.Selector(default="period", objects=[
+        "period", "comma"], doc="""
+        Specifies what separator to use to separate the whole and fractional
+        parts of a floating point number as in `2.5` for the default,
+        ``period`` or `2{,}5` when ``comma`` is specified. Lists, sets, and
+        tuple are printed with semicolon separating the elements when ``comma``
+        is chosen. For example, [1; 2; 3] when ``comma`` is chosen and [1,2,3]
+        for when ``period`` is chosen.""")
+    perm_cyclic = param.Boolean(True)
+    min = param.Integer(None, doc="""
+        Sets the lower bound for the exponent to print floating point numbers
+        in fixed-point format.""")
+    max = param.Integer(None, doc="""
+        Sets the upper bound for the exponent to print floating point numbers
+        in fixed-point format.""")
+    diff_operator = param.Selector(default="d", objects=["d", "rd", "td"], doc=r"""
+        String to use for differential operator. Default is ``'d'``, to print
+        in italic form. ``'rd'``, ``'td'`` are shortcuts for ``\mathrm{d}`` and ``\text{d}``.""")
+    adjoint_style = param.Selector(default="dagger", objects=[
+        "dagger", "star", "hermitian"], doc="""
+        String to use for the adjoint symbol.""")
+    disable_split_super_sub = param.Boolean(False)
+    vector = param.Selector(
+        default="legacy", objects=["legacy", "matrix", "matrix-ns"], doc="""
+        Controls how to render vectors from the sympy.vector module.
+        It can be:
+
+        * ``"legacy"``: vectors are rendered as linear combination between
+          terms and base vectors.
+        * ``"matrix"``: vectors are rendered as 3x1 matrices.
+        * ``"matrix-ns"``: vectors are rendered as 3x1 matrices without the
+          label indicating the system.""")
+    dyadic_style = param.Selector(
+        default="otimes", objects=["none", "vline", "otimes"], doc="""
+        The symbol denoting a dyadic.""")
+
+    def __init__(self, **params):
+        # sadly, there is a method called 'parenthesize_super', hence
+        # I can't define a parameter for this name
+        parenthesize_super = params.pop("parenthesize_super", True)
+        super().__init__(**params)
+        self._further_settings = {
+            "parenthesize_super": parenthesize_super,
+            # these values will be set later
+            "mul_symbol_latex": None,
+            "mul_symbol_latex_numbers": None,
+            "imaginary_unit_latex": None,
+            "diff_operator_latex": None,
+        }
+        self._update_mul_symbols()
+        self._update_imaginary_unit()
+        self._update_diff_operator()
+
+    @property
+    def _settings(self):
+        d = self.param.values().copy()
+        d.update(self._further_settings)
+        return d
+
+    @param.depends("mul_symbol", watch=True)
+    def _update_mul_symbols(self):
+        mul_symbol_table = {
+            None: r" ",
+            "ldot": r" \,.\, ",
+            "dot": r" \cdot ",
+            "times": r" \times "
+        }
+        self._further_settings["mul_symbol_latex"] = mul_symbol_table.get(
+            self.mul_symbol, self.mul_symbol)
+
+        if self.mul_symbol in mul_symbol_table:
+            val = mul_symbol_table[self.mul_symbol or 'dot']
+        elif (
+            self.mul_symbol.strip() in [
+                '', ' ', '\\', '\\,', '\\:', '\\;', '\\quad']
+        ):
+            val = mul_symbol_table['dot']
+        else:
+            val = self.mul_symbol
+        self._further_settings['mul_symbol_latex_numbers'] = val
+
+    @param.depends("imaginary_unit", watch=True)
+    def _update_imaginary_unit(self):
+        imaginary_unit_table = {
+            None: r"i",
+            "i": r"i",
+            "ri": r"\mathrm{i}",
+            "ti": r"\text{i}",
+            "j": r"j",
+            "rj": r"\mathrm{j}",
+            "tj": r"\text{j}",
+        }
+        val = imaginary_unit_table.get(self.imaginary_unit, self.imaginary_unit)
+        self._further_settings['imaginary_unit_latex'] = val
+
+    @param.depends("diff_operator", watch=True)
+    def _update_diff_operator(self):
+        diff_operator_table = {
+            None: r"d",
+            "d": r"d",
+            "rd": r"\mathrm{d}",
+            "td": r"\text{d}",
+        }
+        diff_operator = self.diff_operator
+        self._further_settings["diff_operator_latex"] = diff_operator_table.get(diff_operator, diff_operator)
+
+
+class ExtendedLatexPrinter(PrinterSettings, LatexPrinter):
     r""" 
     Extended Latex printer with new options and ability to set customization
     rules for selected types of symbolic expressions.
@@ -196,48 +458,24 @@ class ExtendedLatexPrinter(LatexPrinter):
     + f_{5}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\theta}}
     + f_{6}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\phi}}
 
+    References
+    ----------
+
+    * https://en.wikipedia.org/wiki/Notation_for_differentiation
     """
 
-    _default_settings: dict[str, Any] = _new_default_settings
+    def __init__(self, **params):
+        super().__init__(**params)
 
-    def __init__(self, settings=None):
-        if settings:
-            _validate_setting(
-                settings,
-                "applied_undef_args",
-                [None, True, False, "all", "first-level"]
-            )
-            _validate_setting(
-                settings,
-                "derivative",
-                [
-                    None, "subscript", "prime-arabic", "prime-roman", "dot",
-                    "d-notation"
-                ]
-            )
-            _validate_setting(
-                settings,
-                "base_scalar_style",
-                ["legacy", "normal", "normal-ns", "bold", "bold-ns"]
-            )
-            _validate_setting(
-                settings,
-                "base_vector_style",
-                ["legacy", "ijk", "ijk-ns", "e", "e-ns", "system"]
-            )
-            _validate_setting(
-                settings,
-                "vector",
-                ["legacy", "matrix", "matrix-ns"]
-            )
-            _validate_setting(
-                settings,
-                "dyadic_style",
-                ["vline", "otimes", "none"]
-            )
+        if (self.fold_short_frac is None) and (self.mode == 'inline'):
+            self.fold_short_frac = True
 
         self.override_rules = []
-        super().__init__(settings)
+        self._str = str
+        self._delim_dict = {'(': ')', '[': ']'}
+        # _print_level is the number of times self._print() was recursively
+        # called. See StrPrinter._print_Float() for an example of usage
+        self._print_level = 0
 
     def add_rule(self, expr, **settings):
         r"""Add a customization rule acting on the provided symbolic expression.
@@ -269,7 +507,7 @@ class ExtendedLatexPrinter(LatexPrinter):
         >>> printer.show_rules()
         [0] g(t)     {'derivative': 'dot'}
         [1] g(t)     {'applied_undef_args': None}
-        
+
         """
         if not isinstance(expr, Basic):
             raise TypeError("`expr` must be a symbolic expression.")
@@ -694,129 +932,13 @@ class ExtendedLatexPrinter(LatexPrinter):
         return outstr
 
 
-@extend_doc(latex)
 @print_function(ExtendedLatexPrinter)
 def extended_latex(expr, **settings):
-    r"""
-    Parameters
-    ----------
-    applied_undef_args : bool or str
-        Strategy to represent the arguments of applied undefined functions.
-        It can be:
+    """Wrapper function to ``ExtendedLatexPrinter``. For a complete
+    documentation, read its docstring.
 
-        * ``"all"`` or ``True``: all arguments will be shown.
-        * ``"first-level"``: consider f(x, g(x, y)). When this option is set,
-            the rendered function will look like f(x, g).
-        * ``False`` or ``None``: no arguments will be shown.
-    derivative : str or None
-        Stategy to represent derivatives of applied undefined functions.
-        It can be:
-
-        * None (default value): standard notation, for example df/dx.
-        * ``"prime-arabic"``: Lagrange's notation for derivatives, which only
-          works for functions with one argument. For example:
-
-          * df/dx -> f'
-          * d^2f/dx^2 -> f''
-          * d^3f/dx^3 -> f'''
-          * d^4f/dx^4 -> f^(4)
-
-        * ``"prime-roman"``: Lagrange's notation for derivatives, which only 
-          works for functions with one argument. For example:
-
-          * df/dx -> f'
-          * d^2f/dx^2 -> f''
-          * d^3f/dx^3 -> f'''
-          * d^4f/dx^4 -> f^(iv)
-
-        * ``"dot"``: Newton's notation for time derivatives using dots, 
-          for example df/dt=\\dot{f}. It only works if the time symbol
-          is constructed with no assumptions.
-
-        * ``"subscript"``: add subscripts on the right side of the function
-          name. For example:
-
-          * df/dx -> (f)_x   
-          * d^2 f / dx^2 -> (f)_xx
-          * ∂^2 f / ∂x∂y -> (f)_xy
-
-        * ``"d-notation"``: add subscripts on the right side of derivative
-          short syntax. For example:
-
-          * df/dx -> D_x f
-          * d^2 f / dx^2 -> D_x^2 f
-          * ∂^2 f / ∂x∂y -> ∂_xy f
-    base_scalar_style : str
-        Controls how to render base scalars from the sympy.vector module.
-        It can be:
-
-        * ``"legacy"``: use standard SymPy's latex printer. Base scalars
-          are rendered in bold font.
-        * ``"normal"`` (default): rendered as 'symbol_{system}'. No bold font.
-        * ``"normal-ns"``: rendered as  'symbol'. No bold font, no system.
-        * ``"bold"``: rendered as 'symbol_{system}' using bold font.
-        * ``"bold-ns"``: rendered as 'symbol' using bold font.
-    base_vector_style: str
-        Controls how to render base vectors and vectors from the sympy.vector
-        module, when the option ``vector="legacy"``. It can be:
-
-        * ``"legacy"``: use standard SymPy's latex printer. Base vectors are
-          rendered as '\hat{i}_{system}, \hat{j}_{system}, \hat{k}_{system}'.
-          Any coefficient to these base vectors are wrapped in parenthesis.
-        * ``"ijk"`` (default): similar to ``"legacy"``, but the coefficients
-          won't be wrapped in parenthesis, unless strictly required.
-        * ``"ijk-ns"``: no system is shown, '\hat{i}, \hat{j}, \hat{k}'.
-          This is useful if we are working with only one cartesian system.
-        * ``"e"``: '\hat{e}_{system, base scalar}'.
-        * ``"e-ns"``: no system is shown, '\hat{e}_{base scalar}'. This is
-          useful if we are working with only one curvilinear system.
-        * ``"system"``: `\hat{system}_{base scalar}`.
-    vector : str
-        Controls how to render vectors from the sympy.vector module.
-        It can be:
-
-        * ``"legacy"``: vectors are rendered as linear combination between
-          terms and base vectors.
-        * ``"matrix"``: vectors are rendered as 3x1 matrices.
-
-    Examples
-    --------
-
-    Let's see in action the new options exposed by this function:
-
-    >>> from sympy import *
-    >>> from sympy_equation import Eqn
-    >>> r, x = symbols("r x")
-    >>> t = Function("theta")(x, r)
-    >>> psi = Function("psi")(x, t)
-    >>> f = Function("f")(t)
-    >>> e = Eqn(psi, x**2 * f)
-
-    Standard output, the same we would get from SymPy:
-
-    >>> print(extended_latex(e))
-    \psi{\left(x,\theta{\left(x,r \right)} \right)} = x^{2} f{\left(\theta{\left(x,r \right)} \right)}
-
-    Hide the arguments from applied undefined functions:
-
-    >>> print(extended_latex(e, applied_undef_args=None))
-    \psi = x^{2} f
-
-    Mixed derivative with respect to r and x using standard notation:
-
-    >>> e_rx = e.apply(Derivative, r, x).dorhs.doit()
-    >>> print(extended_latex(e_rx, applied_undef_args=None))
-    \frac{\partial^{2} \psi}{\partial x\partial r} = x \left(x \frac{\partial f}{\partial \theta} \frac{\partial^{2} \theta}{\partial x\partial r} + x \frac{\partial^{2} f}{\partial \theta^{2}} \frac{\partial \theta}{\partial r} \frac{\partial \theta}{\partial x} + 2 \frac{\partial f}{\partial \theta} \frac{\partial \theta}{\partial r}\right)
-
-    Mixed derivative with respect to r and x using subscripts in order to get 
-    a cleaner representation:
-
-    >>> print(extended_latex(e_rx, applied_undef_args=None, derivative="subscript"))
-    \psi_{rx} = x \left(x f_{\theta} \theta_{rx} + x f_{\theta\theta} \theta_{r} \theta_{x} + 2 f_{\theta} \theta_{r}\right)
-    
-    References
-    ----------
-
-    * https://en.wikipedia.org/wiki/Notation_for_differentiation
+    Returns
+    -------
+    printer : ExtendedLatexPrinter
     """
-    return ExtendedLatexPrinter(settings).doprint(expr)
+    return ExtendedLatexPrinter(**settings).doprint(expr)

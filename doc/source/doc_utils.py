@@ -101,6 +101,24 @@ def process_ClassSelector(child, pobj, ptype, label, members):
     return lines
 
 
+def process_Selector(child, pobj, ptype, label, members):
+    lines = [f"{child} : {ptype}"]
+
+    for name, value in members:
+        skip = should_skip_this_member(pobj, name, value, label)
+        if name == "default":
+            skip = False
+        if name == "names":
+            skip = True
+        if name == "objects":
+            name = "options"
+        if name == "default" and isinstance(value, str) and ("'" not in value):
+            value = f"'{value}'"
+        if not skip:
+            lines.append(f"   :{name}: {value}")
+    return lines
+
+
 def process_Number(child, pobj, ptype, label, members):
     lines = [f"{child} : {ptype}"]
     constant = pobj.constant
@@ -175,6 +193,8 @@ def param_formatter(app, what, name, obj, options, lines):
 
             if ptype == "List":
                 func = process_List
+            elif ptype == "Selector":
+                func = process_Selector
             elif ptype == "ClassSelector":
                 func = process_ClassSelector
             elif ptype in ["Number", "Integer"]:

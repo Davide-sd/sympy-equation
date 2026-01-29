@@ -204,7 +204,7 @@ def test_add_rule_2():
     g = Function("g")(x)
 
     p = ExtendedLatexPrinter(
-        dict(applied_undef_args=None, derivative="subscript"))
+        applied_undef_args=None, derivative="subscript")
     p.add_rule(g, derivative="prime-arabic")
     assert p.doprint(f.diff(x) + g.diff(x, 2)) == r"f_{x} + g^{\prime\prime}"
 

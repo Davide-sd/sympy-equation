@@ -15,7 +15,7 @@ def init_latex_printing(**settings):
     """
 
     latex_mode = settings.get("latex_mode", "plain")
-    p = ExtendedLatexPrinter(settings)
+    p = ExtendedLatexPrinter(**settings)
 
     def _print_latex_text(expr):
         """

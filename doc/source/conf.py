@@ -24,6 +24,7 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx_design",
     "nbsphinx",
+    "sphinx_math_dollar"
 ]
 
 # in order to show the icons on sponsorship buttons
