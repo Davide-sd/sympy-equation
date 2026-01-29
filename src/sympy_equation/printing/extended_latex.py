@@ -460,6 +460,13 @@ class ExtendedLatexPrinter(PrinterSettings, LatexPrinter):
     + f_{5}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\theta}}
     + f_{6}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\phi}}
 
+    Apply colors to specified sub-expressions:
+
+    >>> printer.colorize[f4] = "red"
+    >>> printer.colorize[f5] = "green"
+    >>> print(printer.doprint(f4 + f5 + f6))
+    \textcolor{red}{f_{4}} + \textcolor{green}{f_{5}} + f_{6}
+
     References
     ----------
 
