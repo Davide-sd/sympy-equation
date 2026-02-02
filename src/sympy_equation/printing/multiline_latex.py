@@ -77,7 +77,7 @@ def multiline_latex(
     Examples
     ========
 
-    >>> from sympy import symbols, sin, cos, exp, log, I
+    >>> from sympy import symbols, sin, cos, exp, log, I, Function
     >>> from sympy_equation import multiline_latex
     >>> x, y, alpha = symbols('x y alpha')
     >>> f = Function("f")(x, y)
