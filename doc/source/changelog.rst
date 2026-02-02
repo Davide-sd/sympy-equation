@@ -4,7 +4,7 @@ Changelog
 v1.3.0
 ======
 
-* Added new submodule, ``sympy.printing``, exposing new functionalities
+* Added new submodule, ``sympy_equation.printing``, exposing new functionalities
   allowing to customize Latex code starting from symbolic expressions,
   which is particularly useful when working in interactive shells.
 
