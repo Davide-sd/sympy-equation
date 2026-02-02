@@ -10,7 +10,15 @@ from sympy_equation.printing.utils import print_function
 from sympy_equation._doc_utils import add_parameters_to_docstring
 from typing import Callable, Any, Mapping
 import re
+from packaging.version import Version
+import sympy as sp
 
+
+if Version(sp.__version__) < Version("1.15.0"):
+    # this allows BaseScalar to be printed by the custom latex printers
+    from sympy.vector import BaseScalar
+    if hasattr(BaseScalar, "_latex"):
+        delattr(BaseScalar, "_latex")
 
 greek_letters_set = frozenset(greeks)
 
@@ -799,7 +807,12 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
         idx, sys = expr.args
 
         if base_vector_style == "auto":
-            if sys._is_cartesian:
+            if Version(sp.__version__) < Version("1.15.0"):
+                is_cartesian = all(c == 1 for c in sys.lame_coefficients())
+            else:
+                is_cartesian = sys._is_cartesian
+
+            if is_cartesian:
                 base_vector_style = "ijk"
             else:
                 base_vector_style = "e"

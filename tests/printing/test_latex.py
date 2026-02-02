@@ -107,6 +107,8 @@ from sympy_equation import (
     extended_latex,
     multiline_latex as ml_latex
 )
+from packaging.version import Version
+import sympy as sp
 
 
 def multiline_latex(*args, environment="align*", **kwargs):
@@ -2746,7 +2748,10 @@ def test_issue_9216():
     assert latex(expr_2) == r"1^{1^{-1}}"
 
     expr_3 = Pow(3, -2, evaluate=False)
-    assert latex(expr_3) == r"\frac{1}{3^{2}}"
+    if Version(sp.__version__) < Version("1.15"):
+        assert latex(expr_3) == r"\frac{1}{9}"
+    else:
+        assert latex(expr_3) == r"\frac{1}{3^{2}}"
 
     expr_4 = Pow(1, -2, evaluate=False)
     assert latex(expr_4) == r"1^{-2}"
