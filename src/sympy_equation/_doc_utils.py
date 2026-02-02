@@ -285,8 +285,6 @@ def add_parameters_to_docstring(printer_cls):
         if original_docstring is None:
             return func
 
-        sections = split_docstring(original_docstring)
-
         docstring_sections = split_docstring(original_docstring)
         lines = []
         param_formatter(None, "class", None, printer_cls, None, lines, False)
