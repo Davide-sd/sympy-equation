@@ -1,2 +1,3 @@
 from sympy_equation.printing.extended_latex import extended_latex
 from sympy_equation.printing.multiline_latex import multiline_latex
+from sympy_equation.printing.interactive import init_latex_printing

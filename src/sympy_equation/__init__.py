@@ -12,7 +12,12 @@ from sympy_equation.utils import (
     collect_reciprocal,
     split_two_terms_add,
 )
-from sympy_equation.printing import extended_latex, multiline_latex
+from sympy_equation.printing import (
+    extended_latex,
+    multiline_latex,
+    init_latex_printing
+)
+
 
 try:
     __version__ = importlib.metadata.version(__package__ or __name__)
@@ -31,5 +36,6 @@ __all__ = [
     "collect_reciprocal",
     "split_two_terms_add",
     "extended_latex",
-    "multiline_latex"
+    "multiline_latex",
+    "init_latex_printing"
 ]

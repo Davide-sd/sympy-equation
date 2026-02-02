@@ -111,7 +111,7 @@ def _validate_setting(settings, name, allowed_values):
             )
 
 
-class PrinterSettings(param.Parameterized):
+class _PrinterSettings(param.Parameterized):
     applied_undef_args = param.Selector(
         default="all",
         objects=[None, True, False, "all", "first-level"], doc="""
@@ -135,15 +135,17 @@ class PrinterSettings(param.Parameterized):
         * ``"bold"``: rendered as 'symbol_{system}' using bold font.
         * ``"bold-ns"``: rendered as 'symbol' using bold font.""")
     base_vector_style = param.Selector(
-        default="ijk",
-        objects=["legacy", "ijk", "ijk-ns", "e", "e-ns", "system"], doc=r"""
-        Controls how to render base vectors and vectors from the sympy.vector
-        module, when the option ``vector="legacy"``. It can be:
+        default="auto",
+        objects=["legacy", "ijk", "ijk-ns", "e", "e-ns", "system", "auto"],
+        doc=r"""Controls how to render base vectors and vectors from the
+        sympy.vector module, when the option ``vector="legacy"``. It can be:
 
+        * ``"auto"``: uses 'ijk' for Cartesian systems and 'e' for the
+          other systems.
         * ``"legacy"``: use standard SymPy's latex printer. Base vectors are
           rendered as '\hat{i}_{system}, \hat{j}_{system}, \hat{k}_{system}'.
           Any coefficient to these base vectors are wrapped in parenthesis.
-        * ``"ijk"`` (default): similar to ``"legacy"``, but the coefficients
+        * ``"ijk"``: similar to ``"legacy"``, but the coefficients
           won't be wrapped in parenthesis, unless strictly required.
         * ``"ijk-ns"``: no system is shown, '\hat{i}, \hat{j}, \hat{k}'.
           This is useful if we are working with only one cartesian system.
@@ -302,6 +304,9 @@ class PrinterSettings(param.Parameterized):
         The symbol denoting a dyadic.""")
     colorize = param.Dict(default={}, doc="""
         Map sub-expressions to specific latex colors.""")
+    print_builtin = param.Boolean(True, doc="""
+        If ``True`` then floats and integers will be printed. If ``False`` the
+        printer will only print SymPy types.""")
 
     def __init__(self, **params):
         # sadly, there is a method called 'parenthesize_super', hence
@@ -374,7 +379,7 @@ class PrinterSettings(param.Parameterized):
         self._further_settings["diff_operator_latex"] = diff_operator_table.get(diff_operator, diff_operator)
 
 
-class ExtendedLatexPrinter(PrinterSettings, LatexPrinter):
+class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
     r""" 
     Extended Latex printer with new options and ability to set customization
     rules for selected types of symbolic expressions.
@@ -471,6 +476,7 @@ class ExtendedLatexPrinter(PrinterSettings, LatexPrinter):
     ----------
 
     * https://en.wikipedia.org/wiki/Notation_for_differentiation
+    * https://en.wikibooks.org/wiki/LaTeX/Colors
     """
 
     def __init__(self, **params):
@@ -487,6 +493,9 @@ class ExtendedLatexPrinter(PrinterSettings, LatexPrinter):
         self._print_level = 0
 
     def _print(self, expr, **kwargs) -> str:
+        if isinstance(expr, (int, float)) and (not self.print_builtin):
+            return ""
+
         res = super()._print(expr, **kwargs)
         if isinstance(expr, Expr) and (expr in self.colorize):
             res = r"\textcolor{%s}{%s}" % (self.colorize[expr], res)
@@ -575,16 +584,25 @@ class ExtendedLatexPrinter(PrinterSettings, LatexPrinter):
         --------
         show_rules, add_rule
         """
-        if not isinstance(rule, (int, OverrideRule)):
-            raise TypeError(
-                "`rule` must be an instance of `int` or `OverrideRule`."
-                f" Instead, type {type(rule).__name__} was received."
-            )
-        if isinstance(rule, int):
-            if (rule >= 0) and (rule < len(self.override_rules)):
-                self.override_rules.pop(rule)
-        elif rule in self.override_rules:
-            self.override_rules.remove(rule)
+        if not isinstance(rule, list):
+            rule = [rule]
+
+        rules_to_remove = []
+        for r in rule:
+            if not isinstance(r, (int, OverrideRule)):
+                raise TypeError(
+                    "`rule` must be an instance of `int` or `OverrideRule`."
+                    f" Instead, type {type(rule).__name__} was received."
+                )
+
+            if isinstance(r, int):
+                if (r >= 0) and (r < len(self.override_rules)):
+                    rules_to_remove.append(self.override_rules[r])
+            elif r in self.override_rules:
+                rules_to_remove.append(r)
+
+        for r in rules_to_remove:
+            self.override_rules.remove(r)
 
     def show_rules(self):
         """Show all customization rules applied to target symbolic
@@ -868,10 +886,16 @@ class ExtendedLatexPrinter(PrinterSettings, LatexPrinter):
 
     def _print_BaseVector(self, expr):
         base_vector_style = self._get_setting_for(expr, "base_vector_style")
+        idx, sys = expr.args
+
+        if base_vector_style == "auto":
+            if sys._is_cartesian:
+                base_vector_style = "ijk"
+            else:
+                base_vector_style = "e"
         if base_vector_style in ["legacy", "ijk"]:
             return expr._latex_form
 
-        idx, sys = expr.args
         system_name = sys._name
         vector_name = sys.base_vectors()[idx]._name.split(".")[1]
         scalar_name = sys.base_scalars()[idx].name.split(".")[1]

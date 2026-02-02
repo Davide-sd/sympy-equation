@@ -229,6 +229,9 @@ def test_add_rule_3():
 
     p = ExtendedLatexPrinter()
     assert p.doprint(v1) == r"f_{1}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{i}_{C}} + f_{2}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{j}_{C}} + f_{3}{\left(x_{\text{C}},y_{\text{C}},z_{\text{C}} \right)}\,\mathbf{\hat{k}_{C}}"
+    assert p.doprint(v2) == r"f_{4}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{r}} + f_{5}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\theta}} + f_{6}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{\phi}}"
+
+    p.base_vector_style = "ijk"
     assert p.doprint(v2) == r"f_{4}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{i}_{S}} + f_{5}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{j}_{S}} + f_{6}{\left(r_{\text{S}},\theta_{\text{S}},\phi_{\text{S}} \right)}\,\mathbf{\hat{k}_{S}}"
 
     p.add_rule(S, base_vector_style="e")
