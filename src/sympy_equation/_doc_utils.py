@@ -286,7 +286,6 @@ def add_parameters_to_docstring(printer_cls):
             return func
 
         sections = split_docstring(original_docstring)
-        print("sections.keys", sections.keys())
 
         docstring_sections = split_docstring(original_docstring)
         lines = []
@@ -298,7 +297,6 @@ def add_parameters_to_docstring(printer_cls):
         final_docstring += "\n\n" + parameters_section
 
         for section in docstring_sections:
-            print(section)
             if section != "general":
                 final_docstring += "\n\n" + section + "\n" + "=" * len(section)
                 final_docstring += "\n" + docstring_sections[section]
