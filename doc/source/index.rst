@@ -54,13 +54,12 @@ please consider sponsoring this project with either one of these options:
     :fab:`github;fa-xl` Github Sponsor :fas:`heart;fa-xl`
 
 
-
 .. toctree::
    :maxdepth: 1
    :caption: Contents:
 
    install.rst
    differences.rst
-   module.rst
+   modules/index.rst
    tutorials/index.rst
    changelog.rst

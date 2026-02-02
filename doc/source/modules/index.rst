@@ -2,26 +2,9 @@
 Modules Reference
 -----------------
 
-.. module:: sympy_equation.algebraic_equation
+.. toctree::
+   :maxdepth: 1
+   :caption: Contents:
 
-.. autoclass:: Equation
-
-.. autoclass:: _equation_config
-    :members:
-
-
-.. module:: sympy_equation.utils
-
-.. autoclass:: table_of_expressions
-    :members:
-.. autofunction:: process_arguments_of_add
-.. autofunction:: divide_term_by_term
-.. autofunction:: collect_reciprocal
-.. autofunction:: split_two_terms_add
-
-
-.. module:: sympy_equation.printing.extended_latex
-
-.. autoclass:: ExtendedLatexPrinter
-    :members:
-.. autofunction:: extended_latex
+   expression_manipulation.rst
+   printing.rst
