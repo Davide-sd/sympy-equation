@@ -26,3 +26,4 @@ the capabilities offered by this module.
    tut-1-expression-manipulation.ipynb
    tut-2-snells-law.ipynb
    tut-3-hugoniot-equation.ipynb
+   tut-4-latex-printer.ipynb
