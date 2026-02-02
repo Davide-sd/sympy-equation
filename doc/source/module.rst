@@ -18,3 +18,10 @@ Modules Reference
 .. autofunction:: divide_term_by_term
 .. autofunction:: collect_reciprocal
 .. autofunction:: split_two_terms_add
+
+
+.. module:: sympy_equation.printing.extended_latex
+
+.. autoclass:: ExtendedLatexPrinter
+    :members:
+.. autofunction:: extended_latex
