@@ -6,3 +6,5 @@ Printing
 
 .. module:: sympy_equation.printing.extended_latex
 .. autofunction:: extended_latex
+.. autoclass:: ExtendedLatexPrinter
+    :members:
