@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.insert(0, os.path.abspath('.'))
-from sympy_equation.doc_utils import param_formatter
+from sympy_equation._doc_utils import param_formatter
 
 # Configuration file for the Sphinx documentation builder.
 #

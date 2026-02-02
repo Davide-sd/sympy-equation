@@ -10,7 +10,7 @@ from sympy import (
     Symbol, sympify, Derivative, Pow, Expr, latex, Mul, Basic, Tuple
 )
 from sympy_equation.printing.utils import print_function
-from sympy_equation.doc_utils import add_parameters_to_docstring
+from sympy_equation._doc_utils import add_parameters_to_docstring
 from typing import Callable, Any, Union, Dict, Hashable, Mapping
 import re
 

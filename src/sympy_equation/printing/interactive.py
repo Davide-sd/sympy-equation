@@ -1,5 +1,5 @@
 from sympy_equation.printing.extended_latex import ExtendedLatexPrinter
-from sympy_equation.doc_utils import add_parameters_to_docstring
+from sympy_equation._doc_utils import add_parameters_to_docstring
 from sympy.printing.defaults import Printable
 from sympy.printing.printer import print_function
 
