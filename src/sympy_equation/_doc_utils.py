@@ -256,7 +256,6 @@ def split_docstring(docstring: str) -> dict:
     section_header_re = re.compile(r'^(?P<header>\w[\w ]*)\n[-=]{3,}$', re.MULTILINE)
 
     sections = {}
-    last_index = 0
     current_section = "general"
     matches = list(section_header_re.finditer(docstring))
 

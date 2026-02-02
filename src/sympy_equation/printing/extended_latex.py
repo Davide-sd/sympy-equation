@@ -2,16 +2,13 @@ import param
 from dataclasses import dataclass
 from sympy.abc import greeks
 from sympy.printing.latex import LatexPrinter
-from sympy.printing.printer import print_function
 from sympy.core.function import AppliedUndef
 from sympy.printing.conventions import requires_partial
 from sympy.printing.latex import tex_greek_dictionary
-from sympy import (
-    Symbol, sympify, Derivative, Pow, Expr, latex, Mul, Basic, Tuple
-)
+from sympy import Symbol, Derivative, Pow, Expr, Mul, Basic
 from sympy_equation.printing.utils import print_function
 from sympy_equation._doc_utils import add_parameters_to_docstring
-from typing import Callable, Any, Union, Dict, Hashable, Mapping
+from typing import Callable, Any, Mapping
 import re
 
 
@@ -587,7 +584,7 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
                         args.append(a)
 
                     args = [self._print(a) for a in args]
-                    return new_f + fr"{{\left({",".join(args)}\right)}}"
+                    return new_f + fr"{{\left({','.join(args)}\right)}}"
 
         return super()._print_Function(expr, exp)
 
