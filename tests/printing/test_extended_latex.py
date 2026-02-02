@@ -1,8 +1,7 @@
 from sympy_equation import Eqn, extended_latex, multiline_latex
 from sympy_equation.printing.extended_latex import ExtendedLatexPrinter
 from sympy import (
-    symbols, Function, asin, cos, sin, sqrt, Derivative, exp, log, I,
-    Rational, Pow
+    symbols, Function, asin, cos, sin, sqrt, Derivative
 )
 from sympy.vector import CoordSys3D
 from sympy.physics.vector import ReferenceFrame, dynamicsymbols, Dyadic
@@ -121,7 +120,6 @@ def test_derivative_applied_undef_2():
 
     r, x, tau, rb, tbs, xb = symbols(r"r x tau \bar{r} \bar{\theta} \bar{x}")
     tb = Function(r"\bar{\theta}")(xb, rb)
-    tb_eq = Eqn(tb, rb / xb)
     psi = Function("psi")(xb, tb)
     f = Function("f")
     e = Eqn(psi, xb**2 * f(tb))

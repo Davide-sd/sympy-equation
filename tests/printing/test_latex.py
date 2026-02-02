@@ -94,11 +94,10 @@ from sympy.tensor.toperators import PartialDerivative
 from sympy.vector import CoordSys3D, Cross, Curl, Dot, Divergence, Gradient, Laplacian
 
 
-from sympy.testing.pytest import (raises, _both_exp_pow,
-                                  warns_deprecated_sympy)
+from sympy.testing.pytest import raises, _both_exp_pow
 from sympy.printing.latex import ( translate, greek_letters_set,
                                   tex_greek_dictionary,
-                                  latex_escape, LatexPrinter)
+                                  latex_escape)
 
 import sympy as sym
 
