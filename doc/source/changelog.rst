@@ -1,6 +1,14 @@
 Changelog
 ---------
 
+v1.3.1
+======
+
+* Added ``idx_breakline`` options to ``ExtentedLatexPrinter``.
+  By default, this option is set to an empty string, which improves
+  the printing of ``Idx`` objects on interactive shells.
+
+
 v1.3.0
 ======
 
