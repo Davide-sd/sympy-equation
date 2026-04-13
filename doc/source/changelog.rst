@@ -4,6 +4,7 @@ Changelog
 v1.3.1
 ======
 
+* Added ``to_hsd()`` and ``to_rhs()`` methods to the ``Equation`` class.
 * Added ``idx_breakline`` options to ``ExtentedLatexPrinter``.
   By default, this option is set to an empty string, which improves
   the printing of ``Idx`` objects on interactive shells.

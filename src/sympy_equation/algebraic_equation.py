@@ -62,6 +62,10 @@ class Equation(Basic, EvalfMixin):
         Forces simplification and casts as ``Equality`` to check validity.
     to_expr()
         Alias of ``as_expr()``.
+    to_lhs()
+        Return a new equation with the form ``LHS - RHS = 0``.
+    to_rhs()
+        Return a new equation with the form ``0 = RHS - LHS``.
     cross_multiply()
         Given and equation ``Equation(a/b, c/d)``, cross-multiply
         the members in order to get a new ``Equation(a*d, b*c)``.
@@ -706,7 +710,16 @@ class Equation(Basic, EvalfMixin):
         return self.lhs - self.rhs
 
     def to_expr(self):
+        "Alias of `as_expr`"
         return self.as_expr()
+
+    def to_lhs(self):
+        "Return a new equation with the form ``LHS - RHS = 0``."
+        return self.func(self.lhs - self.rhs, 0)
+
+    def to_rhs(self):
+        "Return a new equation with the form ``0 = RHS - LHS``."
+        return self.func(0, self.rhs - self.lhs)
 
     def diff(self, *symbols, **kwargs):
         return self.func(
