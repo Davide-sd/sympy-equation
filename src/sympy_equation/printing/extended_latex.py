@@ -313,6 +313,11 @@ class _PrinterSettings(param.Parameterized):
     print_builtin = param.Boolean(True, doc="""
         If ``True`` then floats and integers will be printed. If ``False`` the
         printer will only print SymPy types.""")
+    idx_breakline = param.String("", doc="""
+        Latex command to insert between the start and end indices of an
+        Idx object. Default to empty string (for nice rendering on interactive
+        environments). For applications where indices must not be broken
+        into multiple lines, it can be set to '\\nobreak '.""")
 
     def __init__(self, **params):
         # sadly, there is a method called 'parenthesize_super', hence
@@ -477,10 +482,17 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
             ))
         elif type(expr).__name__ == "CoordSys3D":
             from sympy.vector import BaseVector, BaseScalar
-            base_pattern = lambda current_expr: (
-                isinstance(current_expr, (BaseVector, BaseScalar))
-                and (current_expr.args[1] == expr)
-            )
+
+            def base_pattern(current_expr):
+                if isinstance(current_expr, (BaseVector, BaseScalar)):
+                    if current_expr.args[1] == expr:
+                        return True
+                    return False
+                elif isinstance(current_expr, AppliedUndef):
+                    from sympy.vector.scalar import get_system_from_base_scalar
+                    return get_system_from_base_scalar(current_expr) == expr
+                return False
+
             new_rules.append(OverrideRule(
                 matches=base_pattern,
                 settings=settings,
@@ -573,6 +585,7 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
         return super()._print_Pow(expr)
 
     def _print_Function(self, expr, exp=None):
+        result = ""
         if isinstance(expr, AppliedUndef):
             applied_undef_args = self._get_setting_for(
                 expr, "applied_undef_args")
@@ -583,7 +596,7 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
                     new_f = f"{new_f}^{{{exp}}}"
 
                 if not applied_undef_args:
-                    return new_f
+                    result = new_f
                 elif (applied_undef_args == "first-level"):
                     args = []
                     for a in expr.args:
@@ -592,9 +605,17 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
                         args.append(a)
 
                     args = [self._print(a) for a in args]
-                    return new_f + fr"{{\left({','.join(args)}\right)}}"
+                    result = new_f + fr"{{\left({','.join(args)}\right)}}"
+        if result == "":
+            result = super()._print_Function(expr, exp)
 
-        return super()._print_Function(expr, exp)
+        type_name = "BaseScalarFuncOfTime"
+        if type(expr).__name__ == type_name:
+            target = r"\operatorname{%s}" % type_name
+            repl = self._print_BaseScalar(expr)
+            result = result.replace(target, repl)
+            result = result.replace(type_name, repl)
+        return result
 
     def _print_Derivative(self, expr):
         if isinstance(expr.expr, AppliedUndef):
@@ -773,21 +794,41 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
     def _print_BaseScalar(self, expr):
         base_scalar_style = self._get_setting_for(expr, "base_scalar_style")
         if base_scalar_style == "legacy":
-            return expr._latex_form
+            if hasattr(expr, "_latex_form"):
+                return expr._latex_form
+            if isinstance(expr, AppliedUndef):
+                from sympy.printing._utils import _print_BaseScalar_helper
+                variable_name, system_name = _print_BaseScalar_helper(expr)
+            else:
+                idx, sys = expr.args
+                variable_name = getattr(sys, "variable_names",
+                    getattr(sys, "_variable_names", ""))[idx]
+                system_name = getattr(sys, "name", getattr(sys, "_name", ""))
+            return r"\mathbf{{%s}_{%s}}" % (variable_name, system_name)
 
-        coord_sys = expr._system._name
-        name = expr.name.split(".")[1]
+        name = None
+        if isinstance(expr, AppliedUndef):
+            from sympy.printing._utils import _print_BaseScalar_helper
+            name, sys_name = _print_BaseScalar_helper(expr)
+        else:
+            sys = expr._system
+            sys_name = sys._name if hasattr(sys, "_name") else sys.name
+            if "." in expr.name:
+                name = expr.name.split(".")[1]
+            else:
+                name = expr.name
+
         if name in greek_letters_set:
             name = r"\%s" % name
         elif name in tex_greek_dictionary:
             name = tex_greek_dictionary[name]
 
         if base_scalar_style == "normal":
-            return r"%s_{\text{%s}}" % (name, coord_sys)
+            return r"%s_{\text{%s}}" % (name, sys_name)
         elif base_scalar_style == "normal-ns":
             return r"%s" % name
         elif base_scalar_style == "bold":
-            return r"\boldsymbol{%s}_{\textbf{%s}}" % (name, coord_sys)
+            return r"\boldsymbol{%s}_{\textbf{%s}}" % (name, sys_name)
         return r"\boldsymbol{%s}" % name
 
     def _get_setting_for(self, expr, k):
@@ -817,17 +858,39 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
             else:
                 base_vector_style = "e"
         if base_vector_style in ["legacy", "ijk"]:
-            return expr._latex_form
+            if hasattr(expr, "_latex_form"):
+                return expr._latex_form
+            vector_name = ["i", "j", "k"][idx]
+            system_name = getattr(sys, "name", getattr(sys, "_name", ""))
+            return r"\mathbf{\hat{%s}_{%s}}" % (vector_name, system_name)
 
-        system_name = sys._name
-        vector_name = sys.base_vectors()[idx]._name.split(".")[1]
-        scalar_name = sys.base_scalars()[idx].name.split(".")[1]
+
+        system_name = sys._name if hasattr(sys, "_name") else sys.name
+        vector_name = sys.base_vectors()[idx]._name
+        base_scalar = sys.base_scalars()[idx]
+        if isinstance(base_scalar, AppliedUndef):
+            from sympy.printing._utils import _print_BaseScalar_helper
+            scalar_name, _ = _print_BaseScalar_helper(base_scalar)
+        else:
+            scalar_name = base_scalar.name
+
+        if "." in vector_name:
+            vector_name = vector_name.split(".")[1]
+        elif "_" in vector:
+            vector_name = vector_name.split("_")[1]
+
+        if "." in scalar_name:
+            scalar_name = scalar_name.split(".")[1]
+        elif "_" in scalar_name:
+            scalar_name = scalar_name.split("_")[1]
+
         if scalar_name in greek_letters_set:
             scalar_name = r"\%s" % scalar_name
         elif scalar_name in tex_greek_dictionary:
             scalar_name = tex_greek_dictionary[scalar_name]
 
         if base_vector_style == "ijk-ns":
+            vector_name = ["i", "j", "k"][idx]
             return r"\mathbf{\hat{%s}}" % vector_name
         if base_vector_style == "e":
             return r"\mathbf{\hat{e}}^{\left(\text{%s}\right)}_{\boldsymbol{%s}}" % (system_name, scalar_name)
@@ -848,7 +911,8 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
                 if self._settings["vector"] == "matrix-ns":
                     result += template_ns % (c1, c2, c3)
                 else:
-                    system_name = r"\text{%s}" % sys._name
+                    system_name = sys._name if hasattr(sys, "_name") else sys.name
+                    system_name = r"\text{%s}" % system_name
                     result += template % (c1, c2, c3, system_name)
 
                 if i != len(parts) - 1:
@@ -869,8 +933,8 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
             items = [(0, expr)]
 
         for system, vect in items:
-            inneritems = list(vect.components.items())
-            inneritems.sort(key=lambda x: x[0].__str__())
+            inneritems = _sorted_components_for_vector_module(
+                vect, system).items()
             for k, v in inneritems:
                 if v == 1:
                     o1.append(' + ' + self._print(k))
@@ -893,6 +957,19 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
             outstr = outstr[1:]
         return outstr
 
+    def _print_Idx(self, expr):
+        label = self._print(expr.label)
+        if expr.upper is not None:
+            upper = self._print(expr.upper)
+            if expr.lower is not None:
+                lower = self._print(expr.lower)
+            else:
+                lower = self._print(S.Zero)
+            interval = f'{lower}\\mathrel{{..}}{self.idx_breakline}{upper}'
+            return f'{{{label}}}_{{{interval}}}'
+        #if no bounds are defined this just prints the label
+        return label
+
 
 @add_parameters_to_docstring(ExtendedLatexPrinter)
 @print_function(ExtendedLatexPrinter)
@@ -904,3 +981,46 @@ def extended_latex(expr, **settings):
     printer : ExtendedLatexPrinter
     """
     return ExtendedLatexPrinter(**settings).doprint(expr)
+
+
+def _sorted_components_for_vector_module(expr, system):
+    from sympy.vector.dyadic import (
+        BaseDyadic, DyadicAdd, DyadicMul, DyadicZero)
+    Dyadic = (BaseDyadic, DyadicAdd, DyadicMul, DyadicZero)
+
+    if isinstance(expr, Dyadic):
+        return _sorted_dyadic_components(expr)
+    return _sorted_vector_components(expr, system)
+
+
+def _sorted_dyadic_components(dyadic):
+    systems = set()
+    for c in dyadic.components.keys():
+        systems = systems.union([v.system for v in c.args])
+
+    if len(systems) > 1:
+        # TODO: deal with multi system dyadics
+        return dyadic.components
+
+    system = systems.pop()
+
+    # Build an index lookup
+    index = {b: i for i, b in enumerate(system.base_vectors())}
+    ordered_components = dict(
+        sorted(
+            dyadic.components.items(),
+            key=lambda item: (
+                index[item[0].args[0]],  # row (left vector)
+                index[item[0].args[1]]   # column (right vector)
+            )
+        )
+    )
+    return ordered_components
+
+
+def _sorted_vector_components(vec, system):
+    items = vec.components.items()
+    bv = list(system.base_vectors())
+    # sort items according to the order of base vectors
+    ordered_components = dict(sorted(items, key=lambda x: bv.index(x[0])))
+    return ordered_components

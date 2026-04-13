@@ -1,7 +1,7 @@
 from sympy_equation import Eqn, extended_latex
 from sympy_equation.printing.extended_latex import ExtendedLatexPrinter
 from sympy import (
-    symbols, Function, asin, cos, sin, sqrt, Derivative
+    symbols, Function, asin, cos, sin, sqrt, Derivative, Idx
 )
 from sympy.vector import CoordSys3D
 from sympy.physics.vector import ReferenceFrame, dynamicsymbols, Dyadic
@@ -279,27 +279,31 @@ def test_vector_base_vector():
     C = CoordSys3D("C")
     S = C.create_new("S", transformation="spherical")
 
-    assert extended_latex(C.i, base_vector_style="legacy") == r"\mathbf{\hat{i}_{C}}"
-    assert extended_latex(C.i, base_vector_style="ijk") == r"\mathbf{\hat{i}_{C}}"
-    assert extended_latex(C.i, base_vector_style="ijk-ns") == r"\mathbf{\hat{i}}"
-    assert extended_latex(C.i, base_vector_style="e") == r"\mathbf{\hat{e}}^{\left(\text{C}\right)}_{\boldsymbol{x}}"
-    assert extended_latex(C.i, base_vector_style="e-ns") == r"\mathbf{\hat{e}}_{\boldsymbol{x}}"
-    assert extended_latex(C.i, base_vector_style="system") == r"\mathbf{\hat{c}}_{\boldsymbol{x}}"
-    assert extended_latex(C.j, base_vector_style="system") == r"\mathbf{\hat{c}}_{\boldsymbol{y}}"
-    assert extended_latex(C.k, base_vector_style="system") == r"\mathbf{\hat{c}}_{\boldsymbol{z}}"
+    i, j, k = C.base_vectors()
+    e_r, e_theta, e_phi = S.base_vectors()
+    assert extended_latex(i, base_vector_style="legacy") == r"\mathbf{\hat{i}_{C}}"
+    assert extended_latex(i, base_vector_style="ijk") == r"\mathbf{\hat{i}_{C}}"
+    assert extended_latex(i, base_vector_style="ijk-ns") == r"\mathbf{\hat{i}}"
+    assert extended_latex(i, base_vector_style="e") == r"\mathbf{\hat{e}}^{\left(\text{C}\right)}_{\boldsymbol{x}}"
+    assert extended_latex(i, base_vector_style="e-ns") == r"\mathbf{\hat{e}}_{\boldsymbol{x}}"
+    assert extended_latex(i, base_vector_style="system") == r"\mathbf{\hat{c}}_{\boldsymbol{x}}"
+    assert extended_latex(j, base_vector_style="system") == r"\mathbf{\hat{c}}_{\boldsymbol{y}}"
+    assert extended_latex(k, base_vector_style="system") == r"\mathbf{\hat{c}}_{\boldsymbol{z}}"
 
-    assert extended_latex(S.i, base_vector_style="legacy") == r"\mathbf{\hat{i}_{S}}"
-    assert extended_latex(S.i, base_vector_style="ijk") == r"\mathbf{\hat{i}_{S}}"
-    assert extended_latex(S.i, base_vector_style="ijk-ns") == r"\mathbf{\hat{i}}"
-    assert extended_latex(S.i, base_vector_style="e") == r"\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{r}}"
-    assert extended_latex(S.i, base_vector_style="e-ns") == r"\mathbf{\hat{e}}_{\boldsymbol{r}}"
-    assert extended_latex(S.i, base_vector_style="system") == r"\mathbf{\hat{s}}_{\boldsymbol{r}}"
+    assert extended_latex(e_r, base_vector_style="legacy") == r"\mathbf{\hat{i}_{S}}"
+    assert extended_latex(e_r, base_vector_style="ijk") == r"\mathbf{\hat{i}_{S}}"
+    assert extended_latex(e_r, base_vector_style="ijk-ns") == r"\mathbf{\hat{i}}"
+    assert extended_latex(e_r, base_vector_style="e") == r"\mathbf{\hat{e}}^{\left(\text{S}\right)}_{\boldsymbol{r}}"
+    assert extended_latex(e_r, base_vector_style="e-ns") == r"\mathbf{\hat{e}}_{\boldsymbol{r}}"
+    assert extended_latex(e_r, base_vector_style="system") == r"\mathbf{\hat{s}}_{\boldsymbol{r}}"
 
 
 def test_vector_add_mul():
     C = CoordSys3D("C")
     S = C.create_new("S", transformation="spherical")
-    v = C.i + 2*C.j + 3*C.k - S.i + S.r**2 * S.j - (2 - S.r) / (S.r) * S.k
+    i, j, k = C.base_vectors()
+    e_r, e_theta, e_phi = S.base_vectors()
+    v = i + 2*j + 3*k - e_r + S.r**2 * e_theta - (2 - S.r) / (S.r) * e_phi
 
     assert extended_latex(v, base_vector_style="legacy") == r"\mathbf{\hat{i}_{C}} + \left(2\right)\mathbf{\hat{j}_{C}} + \left(3\right)\mathbf{\hat{k}_{C}} - \mathbf{\hat{i}_{S}} + \left(r_{\text{S}}^{2}\right)\mathbf{\hat{j}_{S}} + \left(- \frac{2 - r_{\text{S}}}{r_{\text{S}}}\right)\mathbf{\hat{k}_{S}}"
     assert extended_latex(v, base_vector_style="ijk") == r"\mathbf{\hat{i}_{C}} + 2\,\mathbf{\hat{j}_{C}} + 3\,\mathbf{\hat{k}_{C}} - \mathbf{\hat{i}_{S}} + r_{\text{S}}^{2}\,\mathbf{\hat{j}_{S}} -  \frac{2 - r_{\text{S}}}{r_{\text{S}}}\,\mathbf{\hat{k}_{S}}"
@@ -343,6 +347,15 @@ def test_colorize():
     assert p.doprint(expr) == r"\textcolor{green}{f{\left(x,y,z \right)}} + 6 \textcolor{red}{g{\left(t \right)}}"
     p.colorize = {}
     assert p.doprint(expr) == r"f{\left(x,y,z \right)} + 6 g{\left(t \right)}"
+
+
+def test_idx_objects():
+    i = Idx("i", (0, 4))
+    p = ExtendedLatexPrinter()
+    assert p.doprint(i) == r"{i}_{0\mathrel{..}4}"
+    p.idx_breakline = r"\nobreak "
+    assert p.doprint(i) == r"{i}_{0\mathrel{..}\nobreak 4}"
+
 
 
 ###############################################################################
