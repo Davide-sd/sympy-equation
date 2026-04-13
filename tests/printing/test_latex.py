@@ -119,6 +119,7 @@ def latex(*args, **kwargs):
     kwargs["vector"] = "legacy"
     kwargs["base_vector_style"] = "legacy"
     kwargs["base_scalar_style"] = "legacy"
+    kwargs["idx_breakline"] = r"\nobreak "
     return extended_latex(*args, **kwargs)
 
 
@@ -900,6 +901,7 @@ def test_latex_indexed():
     interval = '\\mathrel{..}\\nobreak '
     assert latex(Indexed('x1', Symbol('i'))) == r'{x_{1}}_{i}'
     assert latex(Indexed('x2', Idx('i'))) == r'{x_{2}}_{i}'
+    print("asdasd", latex(Indexed('x3', Idx('i', Symbol('N')))))
     assert latex(Indexed('x3', Idx('i', Symbol('N')))) == r'{x_{3}}_{{i}_{0'+interval+'N - 1}}'
     assert latex(Indexed('x3', Idx('i', Symbol('N')+1))) == r'{x_{3}}_{{i}_{0'+interval+'N}}'
     assert latex(Indexed('x4', Idx('i', (Symbol('a'),Symbol('b'))))) == r'{x_{4}}_{{i}_{a'+interval+'b}}'
