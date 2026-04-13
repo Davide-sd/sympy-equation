@@ -1168,7 +1168,7 @@ def test_latex_commutator():
     B = Operator('B')
     comm = Commutator(B, A)
     if Version(sp.__version__) < Version("1.15"):
-        assert latex(comm.doit()) == r"- \left(A B - B A\right)"
+        assert latex(comm.doit()) == r"- (A B - B A)"
     else:
         assert latex(comm.doit()) == r"- \left(A B - B A\right)"
 
