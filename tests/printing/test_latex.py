@@ -1167,7 +1167,10 @@ def test_latex_commutator():
     A = Operator('A')
     B = Operator('B')
     comm = Commutator(B, A)
-    assert latex(comm.doit()) == r"- \left(A B - B A\right)"
+    if Version(sp.__version__) < Version("1.15"):
+        assert latex(comm.doit()) == r"- \left(A B - B A\right)"
+    else:
+        assert latex(comm.doit()) == r"- \left(A B - B A\right)"
 
 
 def test_latex_union():
@@ -1212,11 +1215,16 @@ def test_latex_ordinals():
     w = OrdinalOmega()
     assert latex(w) == r"\omega"
     wp = OmegaPower(2, 3)
-    assert latex(wp) == r'\omega^{2} 3'
-    assert latex(Ordinal(wp, OmegaPower(1, 1))) == r'\omega^{2} 3 + \omega'
-    assert latex(Ordinal(OmegaPower(2, 1), OmegaPower(1, 2))) == r'\omega^{2} + \omega 2'
-    assert latex(w**(w + 1) + 1) == r'\omega^{\omega + 1} + 1'
-    assert latex(OmegaPower(0,1)) == '1'
+    if Version(sp.__version__) < Version("1.15"):
+        assert latex(wp) == r'3 \omega^{2}'
+        assert latex(Ordinal(wp, OmegaPower(1, 1))) == r'3 \omega^{2} + \omega'
+        assert latex(Ordinal(OmegaPower(2, 1), OmegaPower(1, 2))) == r'\omega^{2} + 2 \omega'
+    else:
+        assert latex(wp) == r'\omega^{2} 3'
+        assert latex(Ordinal(wp, OmegaPower(1, 1))) == r'\omega^{2} 3 + \omega'
+        assert latex(Ordinal(OmegaPower(2, 1), OmegaPower(1, 2))) == r'\omega^{2} + \omega 2'
+        assert latex(w**(w + 1) + 1) == r'\omega^{\omega + 1} + 1'
+        assert latex(OmegaPower(0,1)) == '1'
 
 
 def test_set_operators_parenthesis():
