@@ -1,6 +1,7 @@
 import param
 from dataclasses import dataclass
 from sympy.abc import greeks
+from sympy.core import S
 from sympy.printing.latex import LatexPrinter
 from sympy.core.function import AppliedUndef
 from sympy.printing.conventions import requires_partial
@@ -876,7 +877,7 @@ class ExtendedLatexPrinter(_PrinterSettings, LatexPrinter):
 
         if "." in vector_name:
             vector_name = vector_name.split(".")[1]
-        elif "_" in vector:
+        elif "_" in vector_name:
             vector_name = vector_name.split("_")[1]
 
         if "." in scalar_name:
